@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Armadio Digitale",
+    "slug": "armadio-digitale",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.armadiodigitale.app"
+    },
+    "android": {
+      "package": "com.armadiodigitale.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "L'app richiede accesso alle foto per selezionare i capi.",
+          "cameraPermission": "L'app richiede accesso alla fotocamera per fotografare i capi."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e5ea0f61-c4df-4132-af5b-afe5993d7b33"
+      }
+    }
+  }
+}
