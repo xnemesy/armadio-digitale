@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
   Linking,
   StyleSheet,
-  Dimensions, // Aggiunto per responsive design
-  Platform,    // Aggiunto per platform-specific code
-  KeyboardAvoidingView // Aggiunto per gestione tastiera
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import * as SplashScreen from 'expo-splash-screen';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -1057,18 +1058,31 @@ const HomeScreen = ({ user, setViewMode }) => {
 };
 
 // ====================================================================
-// Componente Principale (Root)
+// Componente Principale (Root) - MANTIENI SOLO QUESTO
 // ====================================================================
 
 const App = () => {
-    useEffect(() => {
-        console.log("Sistema Armadio Digitale avviato correttamente.");
-    }, []);
-
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('home'); 
-    const [items, setItems] = useState([]); // Aggiungiamo items qui per passarlo all'Outfit Builder
+    const [items, setItems] = useState([]);
+
+    // Previeni l'auto-hide dello splash screen
+    SplashScreen.preventAutoHideAsync().catch(console.warn);
+
+    // Nascondi lo splash screen quando il caricamento è completato
+    useEffect(() => {
+        const hideSplash = async () => {
+            if (!loading) {
+                try {
+                    await SplashScreen.hideAsync();
+                } catch (error) {
+                    console.warn('Error hiding splash screen:', error);
+                }
+            }
+        };
+        hideSplash();
+    }, [loading]);
 
     // Fetch dei dati per l'Outfit Builder (duplica la logica di fetching da HomeScreen)
     useEffect(() => {
@@ -1096,34 +1110,27 @@ const App = () => {
         let unsubscribe;
 
         const initializeAuth = async () => {
-             // Autenticazione tramite token personalizzato o anonima
-             if (__initial_auth_token) {
-                 try {
-                     await signInWithCustomToken(auth, __initial_auth_token);
-                 } catch (e) {
-                     await signInAnonymously(auth); 
-                 }
-             } else {
-                 await signInAnonymously(auth);
-             }
+            try {
+                // Semplifica l'inizializzazione: rimuovi signInAnonymously
+                // e vai direttamente al listener
+                unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                    console.log('Auth state changed:', currentUser ? 'logged in' : 'logged out');
+                    setUser(currentUser);
+                    setLoading(false);
+                    if (currentUser) {
+                        setViewMode('home');
+                    } else {
+                        setViewMode('auth');
+                    }
+                });
+            } catch (err) {
+                console.error("Errore di inizializzazione Auth:", err);
+                setLoading(false);
+                setViewMode('auth');
+            }
         };
 
-        // Listener dello stato di autenticazione
-        initializeAuth().then(() => {
-            unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-                setUser(currentUser);
-                setLoading(false);
-                if (currentUser) {
-                    setViewMode('home');
-                } else {
-                    setViewMode('auth');
-                }
-            });
-        }).catch(err => {
-            console.error("Errore di inizializzazione Auth (Firebase):", err);
-            setLoading(false);
-            setViewMode('auth');
-        });
+        initializeAuth();
 
         return () => unsubscribe && unsubscribe();
     }, []);
@@ -1150,12 +1157,7 @@ const App = () => {
 
     return (
         <View style={styles.container}>
-            {/* Navigazione condizionale */}
-            {user && (viewMode === 'home' || viewMode === 'add' || viewMode === 'outfit') ? (
-                <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
-            ) : (
-                <AuthScreen setViewMode={setViewMode} />
-            )}
+            <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
         </View>
     );
 };

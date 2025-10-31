@@ -17,15 +17,8 @@ export default {
     },
     android: {
       package: "com.armadiodigitale.app",
-      adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#FFFFFF"
-      },
-      permissions: [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      targetSdkVersion: 34,
+      compileSdkVersion: 34
     },
     plugins: [
       [

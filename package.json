@@ -4,21 +4,37 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:clear": "expo start --clear",
+    "start:tunnel": "expo start --tunnel",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "clean": "rm -rf node_modules && rm -f package-lock.json && npm install --legacy-peer-deps",
+    "audit:fix": "npm audit fix || true",
+    "audit:fix:force": "npm audit fix --force || true"
   },
   "dependencies": {
-    "expo": "~49.0.0",
-    "expo-status-bar": "~1.6.0",
-    "expo-image-picker": "~14.3.2",
-    "expo-camera": "~13.4.0",
-    "firebase": "^10.0.0",
-    "react": "18.2.0",
-    "react-native": "0.72.0",
-    "expo-splash-screen": "~0.20.5"
+    "@react-native-picker/picker": "2.11.1",
+    "expo": "~54.0.0",
+    "expo-camera": "~17.0.8",
+    "expo-image-manipulator": "~14.0.7",
+    "expo-image-picker": "~17.0.8",
+    "expo-splash-screen": "~31.0.10",
+    "expo-status-bar": "~3.0.8",
+    "firebase": "^10.7.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-dotenv": "^3.4.11"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
+  },
+  "expo": {
+    "install": {
+      "exclude": []
+    }
+  },
+  "overrides": {
+    "undici": "6.21.2"
   }
 }
