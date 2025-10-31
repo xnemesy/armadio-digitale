@@ -1,0 +1,1 @@
+# armadio-digitale
