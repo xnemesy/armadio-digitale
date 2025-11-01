@@ -20,8 +20,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as SplashScreen from 'expo-splash-screen';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
 // Scelta build: EXPO (managed) + EAS (build AAB/APK)
 // Motivo: migliore integrazione con camera/image-picker, workflow EAS per build firmate,
@@ -359,7 +359,7 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
 // ====================================================================
 
 const AddItemScreen = ({ user, setViewMode }) => {
-    const [imageFile, setImageFile] = useState(null);
+    const [imageBase64, setImageBase64] = useState(null); // Base64 string
     const [imagePreview, setImagePreview] = useState(null);
     const [metadata, setMetadata] = useState({ name: '', category: '', mainColor: '', brand: '', size: '' });
     const [loading, setLoading] = useState(false);
@@ -367,7 +367,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
     const [recommendations, setRecommendations] = useState([]);
     const [duplicateFound, setDuplicateFound] = useState(null);
 
-    // Gestione della selezione del file (input file HTML)
+    // Gestione della selezione del file (React Native)
     const handleImageChange = async () => {
         try {
             const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -379,21 +379,30 @@ const AddItemScreen = ({ user, setViewMode }) => {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.7,
+                aspect: [3, 4], 
+                quality: 0.7, 
+                base64: true, // IMPORTANTE: Abilitiamo la generazione Base64
             });
 
             if (!result.canceled) {
                 const uri = result.assets[0].uri;
+                const base64 = result.assets[0].base64;
+                
                 setImagePreview(uri);
                 
-                const response = await fetch(uri);
-                const blob = await response.blob();
-                setImageFile(blob);
+                // Salviamo la stringa Base64 nello stato
+                setImageBase64(base64); 
                 
+                // Resetta stato
                 setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
                 setRecommendations([]);
                 setDuplicateFound(null);
+
+                if (base64) {
+                    analyzeAndCheck(base64); // Avvia analisi con Base64
+                } else {
+                    Alert.alert("Errore", "Impossibile ottenere Base64 per l'analisi AI.");
+                }
             }
         } catch (error) {
             Alert.alert("Errore", "Impossibile caricare l'immagine: " + error.message);
@@ -420,58 +429,47 @@ const AddItemScreen = ({ user, setViewMode }) => {
         return null;
     };
 
+    // Analisi AI e verifica duplicati
+    const analyzeAndCheck = async (base64Content) => {
+        setLoading(true);
+        setStatus('Analisi immagine in corso con Gemini AI...');
+        let aiResult = null;
+        try {
+            aiResult = await analyzeImageWithGemini(base64Content);
+            
+            setMetadata(prev => ({
+                ...prev,
+                name: aiResult.name || '',
+                category: aiResult.category || '',
+                mainColor: aiResult.mainColor || ''
+            }));
+            
+            // Verifica Duplicati
+            setStatus('Verifica duplicati nell\'armadio...');
+            const duplicate = await checkDuplicate(aiResult);
+            if (duplicate) {
+                setDuplicateFound(duplicate);
+                setStatus('ATTENZIONE: Trovato capo simile! Non aggiungerlo se è un duplicato.');
+                setLoading(false); 
+                return;
+            }
+            
+            // Generazione Suggerimenti E-commerce
+            setStatus('Generazione suggerimenti E-commerce...');
+            const recommendations = await getShoppingRecommendations(aiResult.name + ' ' + aiResult.category);
+            setRecommendations(recommendations);
 
-    // Effetto per l'analisi AI e la verifica Duplicati quando l'immagine è pronta
-    useEffect(() => {
-        if (imagePreview && imageFile && !loading && apiKey !== "") {
-            const analyzeAndCheck = async () => {
-                setLoading(true);
-                setStatus('Analisi immagine in corso con Gemini AI...');
-                let aiResult = null;
-                try {
-                    const base64Content = imagePreview.split(',')[1];
-                    aiResult = await analyzeImageWithGemini(base64Content);
-                    
-                    setMetadata(prev => ({
-                        ...prev,
-                        name: aiResult.name || '',
-                        category: aiResult.category || '',
-                        mainColor: aiResult.mainColor || ''
-                    }));
-                    
-                    // Verifica Duplicati
-                    setStatus('Verifica duplicati nell\'armadio...');
-                    const duplicate = await checkDuplicate(aiResult);
-                    if (duplicate) {
-                        setDuplicateFound(duplicate);
-                        setStatus('ATTENZIONE: Trovato capo simile! Non aggiungerlo se è un duplicato.');
-                        setLoading(false); 
-                        return;
-                    }
-                    
-                    // Generazione Suggerimenti E-commerce
-                    setStatus('Generazione suggerimenti E-commerce...');
-                    const recommendations = await getShoppingRecommendations(aiResult.name + ' ' + aiResult.category);
-                    setRecommendations(recommendations);
-
-                    setStatus('Analisi completata. Verifica i metadati.');
-                    
-                } catch (error) {
-                    setStatus('Errore analisi AI. Inserisci i dati manualmente.');
-                    console.error("Errore AI/Duplicati:", error);
-                } finally {
-                    if (!duplicateFound) {
-                         setLoading(false);
-                    }
-                }
-            };
-            analyzeAndCheck();
+            setStatus('Analisi completata. Verifica i metadati.');
+            
+        } catch (error) {
+            setStatus('Errore analisi AI. Inserisci i dati manualmente.');
+            console.error("Errore AI/Duplicati:", error);
+        } finally {
+            if (!duplicateFound) {
+                 setLoading(false);
+            }
         }
-        // Messaggio se la chiave Gemini è mancante
-        if (imagePreview && imageFile && apiKey === "") {
-             setStatus("Inserisci la chiave API Gemini per abilitare l'analisi automatica!");
-        }
-    }, [imagePreview, imageFile, apiKey]);
+    };
 
 
     // Upload su Storage e Salvataggio su Firestore
@@ -481,8 +479,14 @@ const AddItemScreen = ({ user, setViewMode }) => {
             const confirm = window.confirm(`Hai trovato un capo simile (${duplicateFound.name}). Sei sicuro di voler aggiungere questo articolo?`);
             if (!confirm) { return; }
         }
-        if (!imageFile || !metadata.name || !metadata.category || !metadata.mainColor) {
-            alert("Per favore, seleziona un'immagine e verifica i metadati essenziali (Nome, Categoria, Colore).");
+        await saveItem();
+    };
+
+    // MODIFICA: Aggiorniamo saveItem per usare uploadString (Base64)
+    const saveItem = async () => {
+        // Ora controlliamo imageBase64
+        if (!imageBase64 || !metadata.name || !metadata.category || !metadata.mainColor) {
+            Alert.alert("Dati mancanti", "Per favore, seleziona un'immagine e verifica i metadati essenziali (Nome, Categoria, Colore).");
             return;
         }
 
@@ -491,11 +495,17 @@ const AddItemScreen = ({ user, setViewMode }) => {
 
         try {
             const itemId = Date.now().toString();
-            const fileExtension = imageFile.name.split('.').pop();
-            const filePath = `artifacts/${__app_id}/users/${user.uid}/items/${itemId}.${fileExtension}`;
+            // Usiamo jpg come estensione di default
+            const filePath = `artifacts/${__app_id}/users/${user.uid}/items/${itemId}.jpg`;
             
             const fileRef = storageRef(storage, filePath);
-            const snapshot = await uploadBytes(fileRef, imageFile);
+
+            // ==================================================
+            // ECCO LA CORREZIONE CHIAVE
+            // Usiamo uploadString con il formato Base64 invece di uploadBytes
+            const snapshot = await uploadString(fileRef, imageBase64, 'base64');
+            // ==================================================
+            
             const fullSizeUrl = await getDownloadURL(snapshot.ref);
 
             setStatus('File caricato. Salvataggio su Firestore...');
@@ -511,19 +521,17 @@ const AddItemScreen = ({ user, setViewMode }) => {
             };
 
             const itemsCollectionRef = collection(db, `artifacts/${__app_id}/users/${user.uid}/items`);
-            await addDoc(itemsCollectionRef, itemData); 
+            await setDoc(doc(itemsCollectionRef, itemId), itemData); 
 
             setStatus('Capo aggiunto con successo all\'armadio!');
             
-            setTimeout(() => {
-                alert("Capo aggiunto!");
-                setViewMode('home');
-            }, 500);
+            Alert.alert("Successo", "Capo aggiunto!");
+            setViewMode('home');
 
         } catch (error) {
             console.error("Errore nel processo di aggiunta capo:", error);
             setStatus('Errore grave nel salvataggio. Riprova.');
-            alert("Errore nel salvataggio: " + error.message);
+            Alert.alert("Errore", "Errore nel salvataggio: " + error.message);
         } finally {
             setLoading(false);
         }
