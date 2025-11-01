@@ -59,7 +59,7 @@ const apiKey = "AIzaSyB2f_LnPX-IrekX4mwMbyfg4c9AVgq2EVM";
 
 // LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE
 const firebaseConfig = {
-    apiKey: "AIzaSyBwEIW-PsXyc5stjfuvWug2PZ_j8PLwCnM",
+    apiKey: "AIzaSyBYIsbZn-JF2j1fCuVQrxARpk2HRVAR4kg",
     authDomain: "armadiodigitale.firebaseapp.com",
     projectId: "armadiodigitale",
     storageBucket: "armadiodigitale.firebasestorage.app",
