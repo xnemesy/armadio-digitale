@@ -54,12 +54,13 @@ import { getStorage, ref as storageRef, uploadBytes, uploadString, getDownloadUR
 // Variabili globali fornite dall'ambiente Canvas
 const __app_id = typeof __app_id !== 'undefined' ? __app_id : 'armadio-digitale-demo'; 
 const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
-// *** LA TUA CHIAVE API GEMINI ***
-const apiKey = "AIzaSyB2f_LnPX-IrekX4mwMbyfg4c9AVgq2EVM"; 
 
-// LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE
+// *** CHIAVE API GEMINI - Caricata da variabile d'ambiente ***
+const apiKey = process.env.GEMINI_API_KEY || ""; 
+
+// LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando variabili d'ambiente
 const firebaseConfig = {
-    apiKey: "AIzaSyBYIsbZn-JF2j1fCuVQrxARpk2HRVAR4kg",
+    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
     authDomain: "armadiodigitale.firebaseapp.com",
     projectId: "armadiodigitale",
     storageBucket: "armadiodigitale.firebasestorage.app",
