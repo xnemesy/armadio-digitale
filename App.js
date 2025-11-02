@@ -434,44 +434,11 @@ const AddItemScreen = ({ user, setViewMode }) => {
 
     // Analisi AI e verifica duplicati
     const analyzeAndCheck = async (base64Content) => {
-        setLoading(true);
-        setStatus('Analisi immagine in corso con Gemini AI...');
-        let aiResult = null;
-        try {
-            aiResult = await analyzeImageWithGemini(base64Content);
-            
-            setMetadata(prev => ({
-                ...prev,
-                name: aiResult.name || '',
-                category: aiResult.category || '',
-                mainColor: aiResult.mainColor || ''
-            }));
-            
-            // Verifica Duplicati
-            setStatus('Verifica duplicati nell\'armadio...');
-            const duplicate = await checkDuplicate(aiResult);
-            if (duplicate) {
-                setDuplicateFound(duplicate);
-                setStatus('ATTENZIONE: Trovato capo simile! Non aggiungerlo se è un duplicato.');
-                setLoading(false); 
-                return;
-            }
-            
-            // Generazione Suggerimenti E-commerce
-            setStatus('Generazione suggerimenti E-commerce...');
-            const recommendations = await getShoppingRecommendations(aiResult.name + ' ' + aiResult.category);
-            setRecommendations(recommendations);
-
-            setStatus('Analisi completata. Verifica i metadati.');
-            
-        } catch (error) {
-            setStatus('Errore analisi AI. Inserisci i dati manualmente.');
-            console.error("Errore AI/Duplicati:", error);
-        } finally {
-            if (!duplicateFound) {
-                 setLoading(false);
-            }
-        }
+        // 🔧 DEBUG: AI temporaneamente disabilitata per isolare problema Blob
+        setLoading(false);
+        setStatus('⚠️ AI disabilitata - Inserisci nome, categoria e colore manualmente per testare upload');
+        console.log('🔧 DEBUG MODE: Gemini AI disabilitata');
+        return;
     };
 
 
