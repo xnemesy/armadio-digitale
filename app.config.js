@@ -18,7 +18,8 @@ export default {
     android: {
       package: "com.armadiodigitale.app",
       targetSdkVersion: 34,
-      compileSdkVersion: 34
+      compileSdkVersion: 34,
+      googleServicesFile: "./google-services.json"
     },
     plugins: [
       [
