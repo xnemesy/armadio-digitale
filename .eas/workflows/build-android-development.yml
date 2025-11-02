@@ -1,0 +1,15 @@
+name: Android Development Build
+
+# Trigger the workflow manually via EAS CLI or automatically on push
+on:
+  workflow_dispatch:
+  push:
+    branches: ['development', 'main']
+
+jobs:
+  build_android:
+    name: Build Android Development
+    type: build
+    params:
+      platform: android
+      profile: development
