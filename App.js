@@ -56,7 +56,7 @@ const __app_id = typeof __app_id !== 'undefined' ? __app_id : 'armadio-digitale-
 const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
 // *** CHIAVE API GEMINI - Caricata da variabile d'ambiente ***
-const apiKey = process.env.GEMINI_API_KEY || ""; 
+const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || ""; 
 
 // LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando variabili d'ambiente
 const firebaseConfig = {
@@ -84,6 +84,9 @@ const firebaseConfig = {
  * @returns {Promise<object>} Oggetto JSON con nome, categoria e colore.
  */
 const analyzeImageWithGemini = async (base64Image) => {
+    // Debug: Verifica che la chiave API sia caricata
+    console.log('🔑 Gemini API Key presente:', apiKey ? `Sì (${apiKey.substring(0, 10)}...)` : 'NO - MANCANTE!');
+    
     const userPrompt = "Analizza questo capo d'abbigliamento in foto. Identifica la Categoria principale (es. Maglione, Jeans, Vestito), il Colore principale e fornisci un Nome breve e descrittivo (massimo 4 parole). Restituisci la risposta in formato JSON.";
     
     const responseSchema = {
