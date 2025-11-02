@@ -21,7 +21,11 @@ export default {
       package: "com.armadiodigitale.app",
       targetSdkVersion: 34,
       compileSdkVersion: 34,
-      googleServicesFile: "./google-services.json"
+      googleServicesFile: "./google-services.json",
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff"
+      }
     },
     plugins: [
       [
@@ -30,8 +34,7 @@ export default {
           photosPermission: "L'app richiede accesso alle foto per selezionare i capi.",
           cameraPermission: "L'app richiede accesso alla fotocamera per fotografare i capi."
         }
-      ],
-      "@react-native-firebase/app"
+      ]
     ],
     extra: {
       eas: {

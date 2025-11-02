@@ -88,29 +88,30 @@ const analyzeImageWithGemini = async (base64Image) => {
     // Debug: Verifica che la chiave API sia caricata
     console.log('🔑 Gemini API Key presente:', apiKey ? `Sì (${apiKey.substring(0, 10)}...)` : 'NO - MANCANTE!');
     
-    const userPrompt = "Analizza questo capo d'abbigliamento in foto. Identifica la Categoria principale (es. Maglione, Jeans, Vestito), il Colore principale e fornisci un Nome breve e descrittivo (massimo 4 parole). Restituisci la risposta in formato JSON.";
+    const userPrompt = "Analizza questo capo d'abbigliamento in foto. Rispondi SOLO con un oggetto JSON con: name (nome breve 2-4 parole), category (es. Orologio, Maglione, Jeans), mainColor (colore in italiano), brand (nome della marca oppure stringa vuota se non leggibile), size (taglia oppure stringa vuota se non evidente).";
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const responseSchema = {
         type: "OBJECT",
         properties: {
-            "name": { "type": "STRING", "description": "Nome breve e descrittivo del capo." },
-            "category": { "type": "STRING", "description": "Categoria principale del capo (es. Maglione, Jeans, Vestito)." },
-            "mainColor": { "type": "STRING", "description": "Colore dominante in italiano (es. Blu, Rosso, Grigio)." }
+            name: { type: "STRING" },
+            category: { type: "STRING" },
+            mainColor: { type: "STRING" },
+            brand: { type: "STRING" },
+            size: { type: "STRING" }
         },
-        required: ["name", "category", "mainColor"]
+        required: ["name", "category", "mainColor", "brand", "size"]
     };
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-    
     const payload = {
         contents: [
             {
-                role: "user",
                 parts: [
                     { text: userPrompt },
                     {
-                        inlineData: {
-                            mimeType: "image/png", 
+                        inline_data: {
+                            mime_type: "image/jpeg", 
                             data: base64Image
                         }
                     }
@@ -119,7 +120,7 @@ const analyzeImageWithGemini = async (base64Image) => {
         ],
         generationConfig: {
             responseMimeType: "application/json",
-            responseSchema: responseSchema
+            responseSchema
         }
     };
 
@@ -134,8 +135,26 @@ const analyzeImageWithGemini = async (base64Image) => {
             if (response.ok) {
                 const result = await response.json();
                 const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                console.log('🤖 Gemini raw text:', jsonText);
                 if (jsonText) {
-                    return JSON.parse(jsonText);
+                    const cleanJson = jsonText
+                        .replace(/```(?:json)?\s*/gi, "")
+                        .replace(/```/g, "")
+                        .trim();
+                    console.log('🤖 Gemini cleaned text:', cleanJson);
+                    try {
+                        const parsed = JSON.parse(cleanJson);
+                        return {
+                            name: parsed.name || "",
+                            category: parsed.category || "",
+                            mainColor: parsed.mainColor || "",
+                            brand: parsed.brand ?? "",
+                            size: parsed.size ?? ""
+                        };
+                    } catch (parseError) {
+                        console.error('Gemini JSON parse failed:', parseError, cleanJson);
+                        throw parseError;
+                    }
                 }
             } else if (response.status === 429 && attempt < 4) {
                 const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
@@ -161,30 +180,14 @@ const analyzeImageWithGemini = async (base64Image) => {
 const getShoppingRecommendations = async (itemDescription) => {
     const userQuery = `Trova 3 link di acquisto per articoli correlati o simili a: ${itemDescription}. Fornisci il titolo del link e l'URL.`;
     
-    const responseSchema = {
-        type: "ARRAY",
-        items: {
-            type: "OBJECT",
-            properties: {
-                "title": { "type": "STRING" },
-                "url": { "type": "STRING" }
-            },
-            required: ["title", "url"]
-        }
-    };
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
         // ABILITIAMO GOOGLE SEARCH (Grounding)
         tools: [{ "google_search": {} }], 
         systemInstruction: {
-            parts: [{ text: "Agisci come un personal shopper esperto. Restituisci esattamente 3 suggerimenti di shopping in formato JSON." }]
-        },
-        generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: responseSchema
+            parts: [{ text: "Agisci come un personal shopper esperto. Restituisci da 1 a 3 suggerimenti di shopping in formato JSON (array di oggetti con campi title e url)." }]
         }
     };
 
@@ -200,7 +203,31 @@ const getShoppingRecommendations = async (itemDescription) => {
                 const result = await response.json();
                 const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
                 if (jsonText) {
-                    return JSON.parse(jsonText);
+                    const cleanJson = jsonText
+                        .replace(/```(?:json)?\s*/gi, "")
+                        .replace(/```/g, "")
+                        .trim();
+                    try {
+                        const parsed = JSON.parse(cleanJson);
+                        if (Array.isArray(parsed)) {
+                            return parsed.filter(item => item && item.title && item.url);
+                        }
+                        if (parsed && parsed.title && parsed.url) {
+                            return [parsed];
+                        }
+                        console.warn('Gemini shopping JSON unexpected shape:', parsed);
+                        return [];
+                    } catch (parseError) {
+                        console.error('Gemini shopping JSON parse failed:', parseError, cleanJson);
+                        // Prova fallback avvolgendo in array
+                        try {
+                            const fallback = JSON.parse(`[${cleanJson}]`);
+                            return Array.isArray(fallback) ? fallback.filter(item => item && item.title && item.url) : [];
+                        } catch (fallbackError) {
+                            console.error('Gemini shopping fallback parse failed:', fallbackError);
+                        }
+                        throw parseError;
+                    }
                 }
             } else if (response.status === 429 && attempt < 4) {
                 const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
@@ -235,7 +262,7 @@ const getOutfitSuggestion = async (availableItems, userRequest) => {
                         Inventario disponibile: ${inventory}. 
                         Descrivi l'outfit in modo entusiasta, menzionando i nomi dei capi utilizzati (usa gli ID per riferimento).`;
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
     
     const payload = {
         contents: [{ parts: [{ text: userPrompt }] }],
@@ -439,7 +466,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                 ...prev,
                 name: aiResult.name || '',
                 category: aiResult.category || '',
-                mainColor: aiResult.mainColor || ''
+                mainColor: aiResult.mainColor || '',
+                brand: aiResult.brand || '',
+                size: aiResult.size || ''
             }));
             
             // Verifica Duplicati
