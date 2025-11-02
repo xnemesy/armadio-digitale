@@ -19,7 +19,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as SplashScreen from 'expo-splash-screen';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+// ❌ FIREBASE AUTH NON FUNZIONA IN REACT NATIVE - COMMENTATO
+// import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -71,7 +72,8 @@ const firebaseConfig = {
 
 // Inizializzazione
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// ❌ AUTH COMMENTATO - NON FUNZIONA IN REACT NATIVE
+// const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app); 
 
@@ -701,20 +703,14 @@ const AuthScreen = ({ setViewMode }) => {
         
         setLoading(true);
         try {
-            if (isLogin) {
-                await signInWithEmailAndPassword(auth, email, password);
-            } else {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await saveUserMetadata(userCredential.user.uid, userCredential.user.email);
-            }
+            // ❌ AUTH DISABILITATO - Login automatico con utente mock
+            console.log('Login simulato per:', email);
+            const mockUser = { uid: 'test-user-' + Date.now(), email: email };
+            setUser(mockUser);
+            setViewMode('home');
+            alert('Login simulato riuscito!');
         } catch (error) {
-            // Messaggi di errore migliorati
-            const errorMessage = error.code === 'auth/invalid-credential' 
-                ? 'Email o password non corretti.'
-                : error.code === 'auth/email-already-in-use'
-                ? 'Questa email è già registrata.'
-                : error.message;
-            alert("Errore: " + errorMessage);
+            alert("Errore: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -960,8 +956,10 @@ const HomeScreen = ({ user, setViewMode }) => {
 
     const handleSignOut = async () => {
         try {
-            await signOut(auth);
-            console.log("Utente disconnesso con successo.");
+            // ❌ AUTH DISABILITATO - Logout simulato
+            console.log("Logout simulato");
+            setUser(null);
+            setViewMode('auth');
         } catch (error) {
             alert("Errore Disconnessione: " + error.message);
         }
@@ -1116,32 +1114,23 @@ const App = () => {
 
 
     useEffect(() => {
-        let unsubscribe;
-
-        const initializeAuth = async () => {
+        // ❌ AUTH DISABILITATO - Skip diretto alla home
+        const initApp = async () => {
             try {
-                // Semplifica l'inizializzazione: rimuovi signInAnonymously
-                // e vai direttamente al listener
-                unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-                    console.log('Auth state changed:', currentUser ? 'logged in' : 'logged out');
-                    setUser(currentUser);
-                    setLoading(false);
-                    if (currentUser) {
-                        setViewMode('home');
-                    } else {
-                        setViewMode('auth');
-                    }
-                });
-            } catch (err) {
-                console.error("Errore di inizializzazione Auth:", err);
+                console.log('App inizializzata senza Auth');
+                setUser({ uid: 'test-user' }); // Utente mock
                 setLoading(false);
-                setViewMode('auth');
+                setViewMode('home');
+            } catch (err) {
+                console.error("Errore di inizializzazione:", err);
+                setLoading(false);
+                setViewMode('home'); // Anche in caso di errore vai alla home
             }
         };
 
-        initializeAuth();
+        initApp();
 
-        return () => unsubscribe && unsubscribe();
+        return () => {}; // Nessun cleanup necessario
     }, []);
 
     if (loading) {
@@ -1816,23 +1805,8 @@ const outfitStyles = {
 
 
 // Miglioramento della compressione immagini
-// Modifica compressImage per React Native
-const compressImage = async (uri) => {
-  try {
-    // Usa expo-image-manipulator per compressione
-    const manipResult = await ImageManipulator.manipulateAsync(
-      uri,
-      [{ resize: { width: 800 } }],
-      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-    );
-    
-    const response = await fetch(manipResult.uri);
-    const blob = await response.blob();
-    return blob;
-  } catch (error) {
-    throw new Error('Errore nella compressione immagine: ' + error.message);
-  }
-};
+// ❌ FUNZIONE RIMOSSA - compressImage non necessaria (usiamo Base64 direttamente)
+// La compressione è già gestita da ImagePicker con quality: 0.7
 
 // Aggiungi gestione permessi fotocamera
 const requestCameraPermissions = async () => {
