@@ -1,0 +1,14 @@
+name: Submit to Play Store
+
+# Submit a successful build to Google Play Store
+on:
+  workflow_dispatch:
+
+jobs:
+  submit_android:
+    name: Submit Android to Play Store
+    type: submit
+    params:
+      platform: android
+      profile: production
+      track: internal  # Options: internal, alpha, beta, production

@@ -1,0 +1,15 @@
+name: EAS Update (OTA)
+
+# Push over-the-air updates without rebuilding
+on:
+  workflow_dispatch:
+  push:
+    branches: ['main']
+
+jobs:
+  eas_update:
+    name: Publish EAS Update
+    type: update
+    params:
+      branch: production
+      message: "Auto-update from main branch"
