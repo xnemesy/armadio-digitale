@@ -471,9 +471,19 @@ const AddItemScreen = ({ user, setViewMode }) => {
             const fileRef = storageRef(storage, filePath);
 
             // ==================================================
-            // ECCO LA CORREZIONE CHIAVE
-            // Usiamo uploadString con il formato Base64 invece di uploadBytes
-            const snapshot = await uploadString(fileRef, imageBase64, 'base64');
+            // FIX BLOB ERROR: Converti Base64 in Uint8Array invece di usare uploadString
+            // uploadString() internamente crea un Blob che non è supportato in React Native
+            const byteCharacters = atob(imageBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            
+            // Usa uploadBytes con Uint8Array invece di uploadString con Base64
+            const snapshot = await uploadBytes(fileRef, byteArray, {
+                contentType: 'image/jpeg'
+            });
             // ==================================================
             
             const fullSizeUrl = await getDownloadURL(snapshot.ref);
