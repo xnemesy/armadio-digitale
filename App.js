@@ -18,11 +18,10 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as SplashScreen from 'expo-splash-screen';
-import { initializeApp } from 'firebase/app';
-// ❌ FIREBASE AUTH NON FUNZIONA IN REACT NATIVE - COMMENTATO
-// import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+
+// React Native Firebase (moduli nativi)
+import storage from '@react-native-firebase/storage';
+import firestore from '@react-native-firebase/firestore';
 
 // Scelta build: EXPO (managed) + EAS (build AAB/APK)
 // Motivo: migliore integrazione con camera/image-picker, workflow EAS per build firmate,
@@ -70,12 +69,9 @@ const firebaseConfig = {
     measurementId: "G-0WY4W91L0M"
 };
 
-// Inizializzazione
-const app = initializeApp(firebaseConfig);
-// ❌ AUTH COMMENTATO - NON FUNZIONA IN REACT NATIVE
-// const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app); 
+// ⚠️ NOTA: Con React Native Firebase, l'inizializzazione avviene automaticamente
+// tramite google-services.json (Android) e GoogleService-Info.plist (iOS)
+// Non serve più initializeApp()
 
 
 // ====================================================================
@@ -362,7 +358,8 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
 // ====================================================================
 
 const AddItemScreen = ({ user, setViewMode }) => {
-    const [imageBase64, setImageBase64] = useState(null); // Base64 string
+    const [imageBase64, setImageBase64] = useState(null); // Base64 per AI
+    const [imageLocalUri, setImageLocalUri] = useState(null); // URI locale per upload nativo
     const [imagePreview, setImagePreview] = useState(null);
     const [metadata, setMetadata] = useState({ name: '', category: '', mainColor: '', brand: '', size: '' });
     const [loading, setLoading] = useState(false);
@@ -392,9 +389,8 @@ const AddItemScreen = ({ user, setViewMode }) => {
                 const base64 = result.assets[0].base64;
                 
                 setImagePreview(uri);
-                
-                // Salviamo la stringa Base64 nello stato
-                setImageBase64(base64); 
+                setImageLocalUri(uri); // Salva URI locale per upload nativo
+                setImageBase64(base64); // Salva Base64 per AI
                 
                 // Resetta stato
                 setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
@@ -413,18 +409,13 @@ const AddItemScreen = ({ user, setViewMode }) => {
         }
     };
     
-    // Funzione per cercare duplicati in Firestore
+    // Funzione per cercare duplicati in Firestore (sintassi nativa)
     const checkDuplicate = async (aiMetadata) => {
-        const itemsCollectionRef = collection(db, `artifacts/${__app_id}/users/${user.uid}/items`);
-        
-        // Query per cercare capi con la stessa Categoria e Colore
-        const q = query(
-            itemsCollectionRef, 
-            where('category', '==', aiMetadata.category), 
-            where('mainColor', '==', aiMetadata.mainColor)
-        );
-
-        const snapshot = await getDocs(q);
+        const snapshot = await firestore()
+            .collection(`artifacts/${__app_id}/users/${user.uid}/items`)
+            .where('category', '==', aiMetadata.category)
+            .where('mainColor', '==', aiMetadata.mainColor)
+            .get();
         
         if (!snapshot.empty) {
             return snapshot.docs[0].data(); // Restituisce il primo duplicato trovato
@@ -487,8 +478,8 @@ const AddItemScreen = ({ user, setViewMode }) => {
 
     // MODIFICA: Aggiorniamo saveItem per usare uploadString (Base64)
     const saveItem = async () => {
-        // Ora controlliamo imageBase64
-        if (!imageBase64 || !metadata.name || !metadata.category || !metadata.mainColor) {
+        // Verifica che abbiamo l'URI locale per l'upload
+        if (!imageLocalUri || !metadata.name || !metadata.category || !metadata.mainColor) {
             Alert.alert("Dati mancanti", "Per favore, seleziona un'immagine e verifica i metadati essenziali (Nome, Categoria, Colore).");
             return;
         }
@@ -498,28 +489,24 @@ const AddItemScreen = ({ user, setViewMode }) => {
 
         try {
             const itemId = Date.now().toString();
-            // Usiamo jpg come estensione di default
             const filePath = `artifacts/${__app_id}/users/${user.uid}/items/${itemId}.jpg`;
             
-            const fileRef = storageRef(storage, filePath);
+            // ==================================================
+            // UPLOAD NATIVO CON REACT-NATIVE-FIREBASE
+            // Usa putFile() con l'URI locale del file
+            const task = storage().ref(filePath).putFile(imageLocalUri);
 
-            // ==================================================
-            // FIX BLOB ERROR: Converti Base64 in Uint8Array invece di usare uploadString
-            // uploadString() internamente crea un Blob che non è supportato in React Native
-            const byteCharacters = atob(imageBase64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            
-            // Usa uploadBytes con Uint8Array invece di uploadString con Base64
-            const snapshot = await uploadBytes(fileRef, byteArray, {
-                contentType: 'image/jpeg'
+            // Monitora il progresso (opzionale)
+            task.on('state_changed', (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setStatus(`Caricamento: ${Math.round(progress)}%`);
             });
+
+            // Attendi completamento
+            await task;
             // ==================================================
             
-            const fullSizeUrl = await getDownloadURL(snapshot.ref);
+            const fullSizeUrl = await storage().ref(filePath).getDownloadURL();
 
             setStatus('File caricato. Salvataggio su Firestore...');
 
@@ -530,11 +517,13 @@ const AddItemScreen = ({ user, setViewMode }) => {
                 userId: user.uid,
                 storagePath: filePath,
                 thumbnailUrl: thumbnailUrl,
-                createdAt: serverTimestamp(),
+                createdAt: firestore.FieldValue.serverTimestamp(),
             };
 
-            const itemsCollectionRef = collection(db, `artifacts/${__app_id}/users/${user.uid}/items`);
-            await setDoc(doc(itemsCollectionRef, itemId), itemData); 
+            await firestore()
+                .collection(`artifacts/${__app_id}/users/${user.uid}/items`)
+                .doc(itemId)
+                .set(itemData); 
 
             setStatus('Capo aggiunto con successo all\'armadio!');
             
@@ -686,13 +675,17 @@ const AuthScreen = ({ setViewMode }) => {
 
     // Funzione per salvare i metadati utente in Firestore
     const saveUserMetadata = async (uid, userEmail) => {
-        const userRef = doc(db, 'artifacts', __app_id, 'users', uid);
         try {
-            await setDoc(userRef, {
-                email: userEmail,
-                createdAt: new Date(),
-                lastActivity: new Date(),
-            }, { merge: true });
+            await firestore()
+                .collection('artifacts')
+                .doc(__app_id)
+                .collection('users')
+                .doc(uid)
+                .set({
+                    email: userEmail,
+                    createdAt: firestore.FieldValue.serverTimestamp(),
+                    lastActivity: firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
             console.log("Metadati utente salvati in Firestore.");
         } catch (error) {
             console.error("Errore nel salvataggio dei metadati:", error);
@@ -781,9 +774,10 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const itemRef = doc(db, `artifacts/${__app_id}/users/${item.userId}/items/${item.id}`);
-            // Usiamo setDoc per sovrascrivere o unire i metadati modificati
-            await setDoc(itemRef, editedMetadata, { merge: true });
+            await firestore()
+                .collection(`artifacts/${__app_id}/users/${item.userId}/items`)
+                .doc(item.id)
+                .set(editedMetadata, { merge: true });
             setEditing(false);
             alert("Modifiche salvate!");
         } catch (error) {
@@ -801,13 +795,14 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
         try {
             // 1. Elimina il file da Storage
             if (item.storagePath) {
-                const fileRef = storageRef(storage, item.storagePath);
-                await deleteObject(fileRef);
+                await storage().ref(item.storagePath).delete();
             }
             
             // 2. Elimina il documento da Firestore
-            const itemRef = doc(db, `artifacts/${__app_id}/users/${item.userId}/items/${item.id}`);
-            await deleteDoc(itemRef);
+            await firestore()
+                .collection(`artifacts/${__app_id}/users/${item.userId}/items`)
+                .doc(item.id)
+                .delete();
             
             onDelete(); // Aggiorna lo stato nel genitore (HomeScreen)
             setViewMode('home');
@@ -925,23 +920,23 @@ const HomeScreen = ({ user, setViewMode }) => {
         setLoadingItems(true);
         const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
         
-        const itemsQuery = query(collection(db, itemsCollectionPath));
-        
-        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
-            const fetchedItems = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            fetchedItems.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)); 
-            
-            setItems(fetchedItems);
-            setLoadingItems(false);
-        }, (error) => {
-            console.error("Errore nel fetching degli articoli:", error);
-            setLoadingItems(false);
-            alert("Errore nel caricamento dell'armadio: " + error.message);
-        });
+        const unsubscribe = firestore()
+            .collection(itemsCollectionPath)
+            .onSnapshot((snapshot) => {
+                const fetchedItems = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                fetchedItems.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)); 
+                
+                setItems(fetchedItems);
+                setLoadingItems(false);
+            }, (error) => {
+                console.error("Errore nel fetching degli articoli:", error);
+                setLoadingItems(false);
+                alert("Errore nel caricamento dell'armadio: " + error.message);
+            });
 
         return () => unsubscribe(); 
     }, [user]);
@@ -1106,18 +1101,19 @@ const App = () => {
         if (!user || !user.uid) return;
 
         const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
-        const itemsQuery = query(collection(db, itemsCollectionPath));
         
         // Questo listener è necessario per passare l'inventario aggiornato all'Outfit Builder
-        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
-            const fetchedItems = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setItems(fetchedItems);
-        }, (error) => {
-            console.error("Errore nel fetching globale degli articoli:", error);
-        });
+        const unsubscribe = firestore()
+            .collection(itemsCollectionPath)
+            .onSnapshot((snapshot) => {
+                const fetchedItems = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setItems(fetchedItems);
+            }, (error) => {
+                console.error("Errore nel fetching globale degli articoli:", error);
+            });
 
         return () => unsubscribe(); 
     }, [user]);

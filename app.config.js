@@ -27,7 +27,8 @@ export default {
           photosPermission: "L'app richiede accesso alle foto per selezionare i capi.",
           cameraPermission: "L'app richiede accesso alla fotocamera per fotografare i capi."
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ],
     extra: {
       eas: {
