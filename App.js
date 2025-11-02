@@ -18,6 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
 
 // React Native Firebase (moduli nativi)
 import storage from '@react-native-firebase/storage';
@@ -55,12 +56,12 @@ import firestore from '@react-native-firebase/firestore';
 const __app_id = typeof __app_id !== 'undefined' ? __app_id : 'armadio-digitale-demo'; 
 const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
-// *** CHIAVE API GEMINI - Caricata da variabile d'ambiente ***
-const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || ""; 
+// *** CHIAVE API GEMINI - Caricata da expo-constants extra ***
+const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY || ""; 
 
-// LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando variabili d'ambiente
+// LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando expo-constants extra
 const firebaseConfig = {
-    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
+    apiKey: Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_API_KEY || "",
     authDomain: "armadiodigitale.firebaseapp.com",
     projectId: "armadiodigitale",
     storageBucket: "armadiodigitale.firebasestorage.app",
