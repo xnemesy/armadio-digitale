@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { 
   View, 
   Text, 
@@ -12,8 +13,9 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-  KeyboardAvoidingView
+    KeyboardAvoidingView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -161,6 +163,10 @@ const analyzeImageWithGemini = async (base64Image) => {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
+            // Log dettagliato dell'errore per diagnosi 403/401
+            let errorBody = '';
+            try { errorBody = await response.text(); } catch {}
+            console.error('Gemini analyzeImage error', response.status, response.statusText, errorBody);
             throw new Error(`API response error: ${response.status} ${response.statusText}`);
 
         } catch (error) {
@@ -234,6 +240,10 @@ const getShoppingRecommendations = async (itemDescription) => {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
+            // Log dettagliato dell'errore per diagnosi 403/401
+            let errorBody = '';
+            try { errorBody = await response.text(); } catch {}
+            console.error('Gemini shopping error', response.status, response.statusText, errorBody);
             throw new Error(`API response error: ${response.status} ${response.statusText}`);
         } catch (error) {
             if (attempt === 4) throw error; 
@@ -288,6 +298,10 @@ const getOutfitSuggestion = async (availableItems, userRequest) => {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
+            // Log dettagliato dell'errore per diagnosi 403/401
+            let errorBody = '';
+            try { errorBody = await response.text(); } catch {}
+            console.error('Gemini outfit suggestion error', response.status, response.statusText, errorBody);
             throw new Error(`API response error: ${response.status} ${response.statusText}`);
         } catch (error) {
             if (attempt === 4) throw error; 
@@ -335,7 +349,7 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
     return (
         <View style={outfitStyles.container}>
             <View style={detailStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton}>
+                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>👗 Outfit Builder AI</Text>
@@ -345,6 +359,8 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
                 <TextInput
                     style={outfitStyles.textarea}
                     placeholder="Esempio: Outfit casual per un aperitivo estivo o Abbinamento elegante per una riunione..."
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                     value={request}
                     onChangeText={setRequest}
                     multiline
@@ -408,7 +424,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                mediaTypes: ImagePicker.MediaType.Images,
                 allowsEditing: true,
                 aspect: [3, 4], 
                 quality: 0.7, 
@@ -580,7 +596,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
     return (
         <View style={addItemStyles.container}>
             <View style={addItemStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={addItemStyles.backButton}>
+                <TouchableOpacity onPress={() => setViewMode('home')} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={addItemStyles.title}>Aggiungi Nuovo Capo</Text>
@@ -627,7 +643,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                     value={metadata.name} 
                     onChangeText={text => setMetadata(prev => ({...prev, name: text}))}
                     style={addItemStyles.input} 
-                    placeholder="Nome (es. Maglione Oversize)" 
+                    placeholder="Nome (es. Maglione Oversize)"
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                 />
                 
                 <Text style={addItemStyles.label}>Categoria (AI):</Text>
@@ -635,7 +653,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                     value={metadata.category} 
                     onChangeText={text => setMetadata(prev => ({...prev, category: text}))}
                     style={addItemStyles.input} 
-                    placeholder="Categoria (es. Maglione)" 
+                    placeholder="Categoria (es. Maglione)"
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                 />
                 
                 <Text style={addItemStyles.label}>Colore Principale (AI):</Text>
@@ -643,7 +663,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                     value={metadata.mainColor} 
                     onChangeText={text => setMetadata(prev => ({...prev, mainColor: text}))}
                     style={addItemStyles.input} 
-                    placeholder="Colore (es. Rosso)" 
+                    placeholder="Colore (es. Rosso)"
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                 />
                 
                 <Text style={addItemStyles.label}>Marca:</Text>
@@ -651,7 +673,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                     value={metadata.brand} 
                     onChangeText={text => setMetadata(prev => ({...prev, brand: text}))}
                     style={addItemStyles.input} 
-                    placeholder="Marca (es. Zara)" 
+                    placeholder="Marca (es. Zara)"
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                 />
                 
                 <Text style={addItemStyles.label}>Taglia:</Text>
@@ -659,7 +683,9 @@ const AddItemScreen = ({ user, setViewMode }) => {
                     value={metadata.size} 
                     onChangeText={text => setMetadata(prev => ({...prev, size: text}))}
                     style={addItemStyles.input} 
-                    placeholder="Taglia (es. M / 42)" 
+                    placeholder="Taglia (es. M / 42)"
+                    placeholderTextColor="#9CA3AF"
+                    selectionColor="#4F46E5"
                 />
             </View>
             
@@ -760,6 +786,8 @@ const AuthScreen = ({ setViewMode }) => {
             <TextInput
                 style={authStyles.input}
                 placeholder="Email"
+                placeholderTextColor="#9CA3AF"
+                selectionColor="#4F46E5"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -769,6 +797,8 @@ const AuthScreen = ({ setViewMode }) => {
             <TextInput
                 style={authStyles.input}
                 placeholder="Password"
+                placeholderTextColor="#9CA3AF"
+                selectionColor="#4F46E5"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -853,13 +883,21 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
         >
           <ScrollView>
             <View style={detailStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton}>
+                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>Dettaglio Capo</Text>
             </View>
 
-            <Image source={{ uri: item.thumbnailUrl }} style={detailStyles.image} />
+            <Animated.Image 
+                source={{ uri: item.thumbnailUrl }} 
+                style={detailStyles.image} 
+                sharedTransitionTag={`item-${item.id}`}
+                sharedTransitionStyle={() => {
+                    'worklet';
+                    return { borderRadius: 10 };
+                }}
+            />
             
             {editing ? (
                 <View style={detailStyles.form}>
@@ -889,7 +927,7 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
                     </View>
                 </View>
             ) : (
-                <View style={detailStyles.info}>
+                <Animated.View style={detailStyles.info} entering={FadeIn.duration(200)}>
                     <Text style={detailStyles.itemName}>{item.name}</Text>
                     <Text style={detailStyles.metadata}>Categoria: {item.category}</Text>
                     <Text style={detailStyles.metadata}>Colore: {item.mainColor}</Text>
@@ -909,7 +947,7 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
+                </Animated.View>
             )}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -926,14 +964,24 @@ const ItemCard = ({ item, onClick }) => {
     const imageUrl = item.thumbnailUrl || `https://placehold.co/150x200/4F46E5/FFFFFF?text=${item.name.substring(0, 10)}`;
     
     return (
-        <TouchableOpacity style={itemCardStyles.card} onPress={() => onClick(item)}>
-            <Image source={{ uri: imageUrl }} style={itemCardStyles.image} />
-            <View style={itemCardStyles.info}>
-                <Text style={itemCardStyles.name}>{item.name}</Text>
-                <Text style={itemCardStyles.category}>{item.category} ({item.mainColor})</Text>
-                <Text style={itemCardStyles.brand}>{item.brand} | Taglia: {item.size}</Text>
-            </View>
-        </TouchableOpacity>
+        <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)}>
+            <TouchableOpacity style={itemCardStyles.card} onPress={() => onClick(item)}>
+                <Animated.Image 
+                source={{ uri: imageUrl }} 
+                style={itemCardStyles.image} 
+                sharedTransitionTag={`item-${item.id}`}
+                sharedTransitionStyle={() => {
+                    'worklet';
+                    return { borderRadius: 10 };
+                }}
+            />
+                <View style={itemCardStyles.info}>
+                <Text style={itemCardStyles.name} numberOfLines={1}>{item.name}</Text>
+                <Text style={itemCardStyles.category} numberOfLines={1}>{item.category} ({item.mainColor})</Text>
+                <Text style={itemCardStyles.brand} numberOfLines={1}>{item.brand} | Taglia: {item.size}</Text>
+                </View>
+            </TouchableOpacity>
+        </Animated.View>
     );
 };
 
@@ -1032,6 +1080,7 @@ const HomeScreen = ({ user, setViewMode }) => {
                 <TextInput
                     style={filterStyles.input}
                     placeholder="Cerca per nome o marca..."
+                    placeholderTextColor="#9CA3AF"
                     value={filter.text}
                     onChangeText={text => setFilter(prev => ({...prev, text}))}
                 />
@@ -1039,6 +1088,7 @@ const HomeScreen = ({ user, setViewMode }) => {
                     selectedValue={filter.category}
                     onValueChange={value => setFilter(prev => ({...prev, category: value}))}
                     style={filterStyles.select}
+                    dropdownIconColor="#111827"
                 >
                     <Picker.Item label="Tutte le categorie" value="" />
                     {categories.map(cat => (
@@ -1049,6 +1099,7 @@ const HomeScreen = ({ user, setViewMode }) => {
                     selectedValue={filter.color}
                     onValueChange={value => setFilter(prev => ({...prev, color: value}))}
                     style={filterStyles.select}
+                    dropdownIconColor="#111827"
                 >
                     <Picker.Item label="Tutti i colori" value="" />
                     {colors.map(color => (
@@ -1193,9 +1244,11 @@ const App = () => {
     }
 
     return (
-        <View style={styles.container}>
-            <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
-        </View>
+        <SafeAreaView style={styles.safeArea}>
+            <View style={styles.container}>
+                <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
+            </View>
+        </SafeAreaView>
     );
 };
 
@@ -1206,6 +1259,10 @@ export default App;
 // ====================================================================
 
 const styles = StyleSheet.create({
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#F7F9FB',
+    },
     container: {
         flex: 1,
         backgroundColor: '#F7F9FB',
@@ -1228,7 +1285,7 @@ const styles = StyleSheet.create({
     },
     subtitle: {
         fontSize: 14,
-        color: '#6B7280',
+        color: '#111827',
         marginBottom: 20,
     },
     loadingContainer: {
@@ -1246,9 +1303,11 @@ const headerStyles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 10,
+        paddingHorizontal: 20, // Aggiunto padding orizzontale
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
         marginBottom: 10,
+        paddingTop: Platform.OS === 'android' ? 10 : 0, // Per StatusBar Android
     },
     title: {
         fontSize: 24,
@@ -1352,6 +1411,8 @@ const itemCardStyles = {
         width: '100%',
         height: '60%',
         objectFit: 'cover',
+        borderTopLeftRadius: 10,
+        borderTopRightRadius: 10,
     },
     info: {
         padding: 10,
@@ -1359,22 +1420,19 @@ const itemCardStyles = {
     },
     name: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#1F2937',
-        margin: 0,
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        textOverflow: 'ellipsis',
+        fontWeight: '700', // Più grassetto per il nome
+        color: '#1F2937', // Scuro per massima leggibilità
+        marginBottom: 4,
     },
     category: {
         fontSize: 12,
-        color: '#4F46E5',
-        margin: 0,
+        color: '#4F46E5', // Colore primario per categoria/colore
+        marginBottom: 2,
     },
     brand: {
         fontSize: 10,
-        color: '#9CA3AF',
-        margin: 0,
+        fontWeight: '500', // Più leggibile
+        color: '#4B5563', // Grigio scuro
     }
 };
 
@@ -1468,6 +1526,8 @@ const addItemStyles = {
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
         paddingBottom: 10,
+        marginTop: Platform.OS === 'android' ? 10 : 0, // Margine per Android
+        zIndex: 2,
     },
     backButton: {
         backgroundColor: 'transparent',
@@ -1479,7 +1539,7 @@ const addItemStyles = {
     },
     title: {
         fontSize: 20,
-        fontWeight: '600',
+        fontWeight: 'bold', // Aumentato per leggibilità
         color: '#1F2937',
         margin: 0,
     },
@@ -1544,7 +1604,8 @@ const addItemStyles = {
         borderWidth: 1,
         borderColor: '#D1D5DB',
         fontSize: 16,
-        color: '#374151',
+        color: '#111827',
+        backgroundColor: '#FFFFFF',
     },
     saveButton: {
         width: '100%',
@@ -1612,6 +1673,7 @@ const detailStyles = {
         borderBottomWidth: 1,
         borderBottomColor: '#E5E7EB',
         paddingBottom: 10,
+        marginTop: Platform.OS === 'android' ? 10 : 0, // Margine per Android
     },
     backButton: {
         backgroundColor: 'transparent',
@@ -1623,7 +1685,7 @@ const detailStyles = {
     },
     title: {
         fontSize: 20,
-        fontWeight: '600',
+        fontWeight: 'bold', // Aumentato per leggibilità
         color: '#1F2937',
         margin: 0,
     },
@@ -1659,7 +1721,8 @@ const detailStyles = {
         borderWidth: 1,
         borderColor: '#D1D5DB',
         fontSize: 16,
-        color: '#374151',
+        color: '#111827',
+        backgroundColor: '#FFFFFF',
     },
     buttonGroup: {
         flexDirection: 'row',
@@ -1745,6 +1808,7 @@ const filterStyles = {
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#E5E7EB',
+        color: '#111827',
     },
     select: {
         padding: 8,
@@ -1754,6 +1818,7 @@ const filterStyles = {
         backgroundColor: '#FFFFFF',
         flex: 1,
         minWidth: 120,
+        color: '#111827',
     }
 };
 
@@ -1779,6 +1844,9 @@ const outfitStyles = {
         marginBottom: 10,
         fontSize: 16,
         resize: 'vertical',
+        color: '#111827',
+        backgroundColor: '#FFFFFF',
+        textAlignVertical: 'top',
     },
     generateButton: {
         width: '100%',
@@ -1806,10 +1874,10 @@ const outfitStyles = {
         marginBottom: 10,
     },
     resultText: {
-        whiteSpace: 'pre-wrap', // Mantiene la formattazione del testo AI
         color: '#004D40',
         fontSize: 16,
-        lineHeight: 1.6,
+        // Usa una lineHeight in dp coerente con il fontSize per evitare sovrapposizioni
+        lineHeight: 22,
     },
     inventoryPreview: {
         padding: 15,
