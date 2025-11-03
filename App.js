@@ -159,79 +159,70 @@ const analyzeImageWithGemini = async (base64Image) => {
 };
 
 /**
- * Chiama l'API Gemini con Google Search attivo per trovare link di shopping correlati.
- * @param {string} itemDescription - Descrizione del capo da cui partire per la ricerca.
+ * Chiama la Cloud Function per ottenere suggerimenti shopping con Google Search.
+ * @param {string} itemDescription - Descrizione del capo.
  * @returns {Promise<Array>} Array di oggetti con titolo e url.
  */
 const getShoppingRecommendations = async (itemDescription) => {
-    const userQuery = `Trova 3 link di acquisto per articoli correlati o simili a: ${itemDescription}. Fornisci il titolo del link e l'URL.`;
+    console.log('🛍️ Chiamata Cloud Function Shopping:', itemDescription);
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    
+    const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/getShoppingRecommendations';
+
     const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        // ABILITIAMO GOOGLE SEARCH (Grounding)
-        tools: [{ "google_search": {} }], 
-        systemInstruction: {
-            parts: [{ text: "Agisci come un personal shopper esperto. Restituisci da 1 a 3 suggerimenti di shopping in formato JSON (array di oggetti con campi title e url)." }]
-        }
+        itemDescription
     };
 
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
         try {
-            const response = await fetch(apiUrl, {
+            console.log(`🔄 Tentativo ${attempt + 1}/3 - Shopping...`);
+            
+            const response = await fetch(cloudFunctionUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                timeout: 30000
             });
 
             if (response.ok) {
                 const result = await response.json();
-                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (jsonText) {
-                    const cleanJson = jsonText
-                        .replace(/```(?:json)?\s*/gi, "")
-                        .replace(/```/g, "")
-                        .trim();
-                    try {
-                        const parsed = JSON.parse(cleanJson);
-                        if (Array.isArray(parsed)) {
-                            return parsed.filter(item => item && item.title && item.url);
-                        }
-                        if (parsed && parsed.title && parsed.url) {
-                            return [parsed];
-                        }
-                        console.warn('Gemini shopping JSON unexpected shape:', parsed);
-                        return [];
-                    } catch (parseError) {
-                        console.error('Gemini shopping JSON parse failed:', parseError, cleanJson);
-                        // Prova fallback avvolgendo in array
-                        try {
-                            const fallback = JSON.parse(`[${cleanJson}]`);
-                            return Array.isArray(fallback) ? fallback.filter(item => item && item.title && item.url) : [];
-                        } catch (fallbackError) {
-                            console.error('Gemini shopping fallback parse failed:', fallbackError);
-                        }
-                        throw parseError;
-                    }
+                console.log('✅ Shopping response:', result);
+
+                if (result.success && result.recommendations) {
+                    return result.recommendations;
+                } else {
+                    console.warn('⚠️ No recommendations found');
+                    return [];
                 }
-            } else if (response.status === 429 && attempt < 4) {
-                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+            } else if (response.status === 429 && attempt < 2) {
+                const delay = Math.pow(2, attempt) * 1000;
+                console.warn(`⚠️ Rate limit, retry tra ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
-            // Log dettagliato dell'errore per diagnosi 403/401
+
             let errorBody = '';
             try { errorBody = await response.text(); } catch {}
-            console.error('Gemini shopping error', response.status, response.statusText, errorBody);
-            throw new Error(`API response error: ${response.status} ${response.statusText}`);
+            console.error('❌ Shopping HTTP error', response.status, errorBody);
+            
+            // Non fallire, restituisci array vuoto
+            return [];
+
         } catch (error) {
-            if (attempt === 4) throw error; 
-            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+            console.error(`❌ Shopping tentativo ${attempt + 1} fallito:`, error.message);
+            
+            if (attempt === 2) {
+                console.warn('⚠️ Shopping fallito dopo 3 tentativi, restituisco array vuoto');
+                return [];
+            }
+            
+            const delay = Math.pow(2, attempt) * 1000;
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-    return []; // Restituisce un array vuoto in caso di fallimento
+    
+    return []; // Fallback gracefully
 };
 
 /**
@@ -809,7 +800,7 @@ const AuthScreen = ({ setViewMode }) => {
 // Componente Dettaglio Articolo (DetailScreen)
 // ====================================================================
 
-const DetailScreen = ({ item, setViewMode, onDelete }) => {
+const DetailScreen = ({ item, onGoBack, onDelete }) => {
     const [editing, setEditing] = useState(false);
     const [editedMetadata, setEditedMetadata] = useState(item);
     const [loading, setLoading] = useState(false);
@@ -863,7 +854,7 @@ const DetailScreen = ({ item, setViewMode, onDelete }) => {
         >
           <ScrollView>
             <View style={detailStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={onGoBack} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>Dettaglio Capo</Text>
@@ -1036,7 +1027,7 @@ const HomeScreen = ({ user, setViewMode }) => {
         return (
             <DetailScreen 
                 item={selectedItem}
-                setViewMode={setViewMode}
+                onGoBack={() => setSelectedItem(null)}
                 onDelete={() => setSelectedItem(null)} // Quando l'articolo è eliminato, torna alla Home
             />
         );

@@ -271,3 +271,135 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
     });
   }
 });
+
+/**
+ * Cloud Function HTTP endpoint per suggerimenti shopping con Gemini + Google Search
+ * 
+ * Request Body:
+ * {
+ *   "itemDescription": "Stivali marrone chiaro in pelle"
+ * }
+ * 
+ * Response:
+ * {
+ *   "success": true,
+ *   "recommendations": [
+ *     {
+ *       "title": "Stivali in pelle marrone - Amazon",
+ *       "url": "https://..."
+ *     }
+ *   ]
+ * }
+ */
+functions.http('getShoppingRecommendations', async (req, res) => {
+  const startTime = Date.now();
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  
+  const logContext = {
+    clientIp,
+    method: req.method,
+    userAgent: req.headers['user-agent'] || 'unknown',
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('🛍️ Incoming shopping request:', JSON.stringify(logContext));
+
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  const rateLimitResult = checkRateLimit(clientIp);
+  if (rateLimitResult.limited) {
+    res.set('Retry-After', rateLimitResult.retryAfter.toString());
+    return res.status(429).json({
+      success: false,
+      error: 'Troppe richieste',
+      retryAfter: rateLimitResult.retryAfter
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({
+      success: false,
+      error: 'Metodo non consentito. Usa POST.'
+    });
+  }
+
+  try {
+    const { itemDescription } = req.body;
+
+    if (!itemDescription || typeof itemDescription !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Parametro itemDescription mancante'
+      });
+    }
+
+    console.log('🛍️ Shopping query:', itemDescription);
+
+    const apiKey = await getGeminiApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash-exp',
+      tools: [{ googleSearch: {} }]
+    });
+
+    const userQuery = `Trova 3 link di acquisto online per: ${itemDescription}. Rispondi SOLO con JSON array: [{"title":"...", "url":"https://..."}]`;
+
+    const geminiStartTime = Date.now();
+    const result = await model.generateContent(userQuery);
+    const geminiDuration = Date.now() - geminiStartTime;
+
+    const response = await result.response;
+    const text = response.text();
+
+    console.log('🤖 Shopping response:', JSON.stringify({
+      duration: geminiDuration,
+      length: text.length
+    }));
+
+    let recommendations = [];
+    try {
+      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const parsed = JSON.parse(cleanText);
+      
+      if (Array.isArray(parsed)) {
+        recommendations = parsed.filter(item => 
+          item && item.title && item.url && item.url.startsWith('http')
+        );
+      } else if (parsed && parsed.title && parsed.url) {
+        recommendations = [parsed];
+      }
+    } catch (parseError) {
+      console.warn('⚠️ Parse warning:', parseError.message);
+      recommendations = [];
+    }
+
+    const totalDuration = Date.now() - startTime;
+    
+    console.log('✅ Shopping done:', recommendations.length, 'items');
+
+    return res.status(200).json({
+      success: true,
+      recommendations,
+      metadata: {
+        processingTime: totalDuration,
+        count: recommendations.length
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Shopping error:', error.message);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      recommendations: []
+    });
+  }
+});
