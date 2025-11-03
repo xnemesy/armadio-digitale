@@ -12,6 +12,10 @@ package-lock.json
 .env.local
 .env.production
 
+# Firebase config files (contengono API keys)
+google-services.json
+GoogleService-Info.plist
+
 # Certificates and keys
 *.jks
 *.p8
