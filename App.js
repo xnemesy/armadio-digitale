@@ -13,7 +13,8 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-    KeyboardAvoidingView
+  KeyboardAvoidingView,
+  StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
@@ -1216,6 +1217,11 @@ const App = () => {
 
     return (
         <SafeAreaView style={styles.safeArea}>
+            <StatusBar 
+                barStyle="dark-content" 
+                backgroundColor="#ffffff"
+                translucent={false}
+            />
             <View style={styles.container}>
                 <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
             </View>
