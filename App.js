@@ -87,91 +87,71 @@ const firebaseConfig = {
  * @returns {Promise<object>} Oggetto JSON con nome, categoria e colore.
  */
 const analyzeImageWithGemini = async (base64Image) => {
-    // Debug: Verifica che la chiave API sia caricata
-    console.log('🔑 Gemini API Key presente:', apiKey ? `Sì (${apiKey.substring(0, 10)}...)` : 'NO - MANCANTE!');
+    console.log('🤖 Chiamata Cloud Function con immagine Base64:', base64Image ? 'Immagine presente' : 'ERRORE - Nessuna immagine');
     
-    const userPrompt = "Analizza questo capo d'abbigliamento in foto. Rispondi SOLO con un oggetto JSON con: name (nome breve 2-4 parole), category (es. Orologio, Maglione, Jeans), mainColor (colore in italiano), brand (nome della marca oppure stringa vuota se non leggibile), size (taglia oppure stringa vuota se non evidente).";
-
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    
-    const responseSchema = {
-        type: "OBJECT",
-        properties: {
-            name: { type: "STRING" },
-            category: { type: "STRING" },
-            mainColor: { type: "STRING" },
-            brand: { type: "STRING" },
-            size: { type: "STRING" }
-        },
-        required: ["name", "category", "mainColor", "brand", "size"]
-    };
+    // URL della Cloud Function deployata su Google Cloud
+    const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage';
 
     const payload = {
-        contents: [
-            {
-                parts: [
-                    { text: userPrompt },
-                    {
-                        inline_data: {
-                            mime_type: "image/jpeg", 
-                            data: base64Image
-                        }
-                    }
-                ]
-            }
-        ],
-        generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema
-        }
+        imageBase64: base64Image,
+        mimeType: 'image/jpeg'
     };
 
     for (let attempt = 0; attempt < 5; attempt++) {
         try {
-            const response = await fetch(apiUrl, {
+            console.log(`🔄 Tentativo ${attempt + 1}/5 - Chiamata Cloud Function...`);
+            
+            const response = await fetch(cloudFunctionUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                timeout: 30000 // 30 secondi timeout
             });
 
             if (response.ok) {
                 const result = await response.json();
-                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-                console.log('🤖 Gemini raw text:', jsonText);
-                if (jsonText) {
-                    const cleanJson = jsonText
-                        .replace(/```(?:json)?\s*/gi, "")
-                        .replace(/```/g, "")
-                        .trim();
-                    console.log('🤖 Gemini cleaned text:', cleanJson);
-                    try {
-                        const parsed = JSON.parse(cleanJson);
-                        return {
-                            name: parsed.name || "",
-                            category: parsed.category || "",
-                            mainColor: parsed.mainColor || "",
-                            brand: parsed.brand ?? "",
-                            size: parsed.size ?? ""
-                        };
-                    } catch (parseError) {
-                        console.error('Gemini JSON parse failed:', parseError, cleanJson);
-                        throw parseError;
-                    }
+                console.log('✅ Cloud Function response:', result);
+
+                if (result.success && result.data) {
+                    // Mappa i campi dalla risposta Cloud Function al formato app
+                    return {
+                        name: result.data.category || "",
+                        category: result.data.category || "",
+                        mainColor: result.data.color || "",
+                        brand: result.data.brand || "Generic",
+                        size: "M" // Default, la Cloud Function non restituisce size
+                    };
+                } else {
+                    console.error('❌ Cloud Function error:', result.error);
+                    throw new Error(result.error || 'Errore analisi immagine');
                 }
             } else if (response.status === 429 && attempt < 4) {
+                // Rate limiting - retry con exponential backoff
                 const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                console.warn(`⚠️ Rate limit (429), retry tra ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
-            // Log dettagliato dell'errore per diagnosi 403/401
+
+            // Log dettagliato errore
             let errorBody = '';
             try { errorBody = await response.text(); } catch {}
-            console.error('Gemini analyzeImage error', response.status, response.statusText, errorBody);
-            throw new Error(`API response error: ${response.status} ${response.statusText}`);
+            console.error('❌ Cloud Function HTTP error', response.status, response.statusText, errorBody);
+            throw new Error(`Cloud Function error: ${response.status} ${response.statusText}`);
 
         } catch (error) {
-            if (attempt === 4) throw error; 
+            console.error(`❌ Tentativo ${attempt + 1} fallito:`, error.message);
+            
+            if (attempt === 4) {
+                // Ultimo tentativo fallito
+                throw new Error(`Impossibile analizzare l'immagine dopo 5 tentativi: ${error.message}`);
+            }
+            
+            // Retry con exponential backoff
             const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+            console.log(`🔄 Retry tra ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }

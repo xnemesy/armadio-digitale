@@ -1,0 +1,14 @@
+{
+  "name": "armadio-digitale-functions",
+  "version": "1.0.0",
+  "description": "Cloud Functions for Armadio Digitale - Gemini API proxy",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.0",
+    "@google-cloud/secret-manager": "^5.6.0",
+    "@google/generative-ai": "^0.21.0"
+  }
+}
