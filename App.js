@@ -17,6 +17,8 @@ import {
   StatusBar
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -26,6 +28,8 @@ import Constants from 'expo-constants';
 // React Native Firebase (moduli nativi)
 import storage from '@react-native-firebase/storage';
 import firestore from '@react-native-firebase/firestore';
+
+const Stack = createNativeStackNavigator();
 
 // Scelta build: EXPO (managed) + EAS (build AAB/APK)
 // Motivo: migliore integrazione con camera/image-picker, workflow EAS per build firmate,
@@ -289,7 +293,8 @@ const getOutfitSuggestion = async (availableItems, userRequest) => {
 // Componente Outfit Builder (OutfitBuilderScreen)
 // ====================================================================
 
-const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
+const OutfitBuilderScreen = ({ navigation, route }) => {
+    const { user, items } = route.params || { user: { uid: 'test-user' }, items: [] };
     const [request, setRequest] = useState('');
     const [suggestion, setSuggestion] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -321,7 +326,7 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
     return (
         <View style={outfitStyles.container}>
             <View style={detailStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>👗 Outfit Builder AI</Text>
@@ -376,7 +381,8 @@ const OutfitBuilderScreen = ({ user, setViewMode, items }) => {
 // Componente Aggiunta Articolo (AddItemScreen)
 // ====================================================================
 
-const AddItemScreen = ({ user, setViewMode }) => {
+const AddItemScreen = ({ navigation, route }) => {
+    const { user } = route.params || { user: { uid: 'test-user' } };
     const [imageBase64, setImageBase64] = useState(null); // Base64 per AI
     const [imageLocalUri, setImageLocalUri] = useState(null); // URI locale per upload nativo
     const [imagePreview, setImagePreview] = useState(null);
@@ -549,7 +555,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
             setStatus('Capo aggiunto con successo all\'armadio!');
             
             Alert.alert("Successo", "Capo aggiunto!");
-            setViewMode('home');
+            navigation.goBack();
 
         } catch (error) {
             console.error("Errore nel processo di aggiunta capo:", error);
@@ -568,7 +574,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
     return (
         <View style={addItemStyles.container}>
             <View style={addItemStyles.header}>
-                <TouchableOpacity onPress={() => setViewMode('home')} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={addItemStyles.title}>Aggiungi Nuovo Capo</Text>
@@ -698,7 +704,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
 // Componente Autenticazione (AuthScreen)
 // ====================================================================
 
-const AuthScreen = ({ setViewMode }) => {
+const AuthScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLogin, setIsLogin] = useState(true); 
@@ -740,8 +746,7 @@ const AuthScreen = ({ setViewMode }) => {
             // ❌ AUTH DISABILITATO - Login automatico con utente mock
             console.log('Login simulato per:', email);
             const mockUser = { uid: 'test-user-' + Date.now(), email: email };
-            setUser(mockUser);
-            setViewMode('home');
+            navigation.replace('Home', { user: mockUser });
             alert('Login simulato riuscito!');
         } catch (error) {
             alert("Errore: " + error.message);
@@ -801,7 +806,8 @@ const AuthScreen = ({ setViewMode }) => {
 // Componente Dettaglio Articolo (DetailScreen)
 // ====================================================================
 
-const DetailScreen = ({ item, onGoBack, onDelete }) => {
+const DetailScreen = ({ navigation, route }) => {
+    const { item } = route.params;
     const [editing, setEditing] = useState(false);
     const [editedMetadata, setEditedMetadata] = useState(item);
     const [loading, setLoading] = useState(false);
@@ -839,8 +845,7 @@ const DetailScreen = ({ item, onGoBack, onDelete }) => {
                 .doc(item.id)
                 .delete();
             
-            onDelete(); // Aggiorna lo stato nel genitore (HomeScreen)
-            setViewMode('home');
+            navigation.goBack(); // Torna alla Home
         } catch (error) {
             alert("Errore nell'eliminazione: " + error.message);
         } finally {
@@ -855,7 +860,7 @@ const DetailScreen = ({ item, onGoBack, onDelete }) => {
         >
           <ScrollView>
             <View style={detailStyles.header}>
-                <TouchableOpacity onPress={onGoBack} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>Dettaglio Capo</Text>
@@ -958,13 +963,13 @@ const ItemCard = ({ item, onClick }) => {
 };
 
 // Componente Home (Schermata Principale App - Armadio)
-const HomeScreen = ({ user, setViewMode }) => {
+const HomeScreen = ({ navigation, route }) => {
+    const { user } = route.params || { user: { uid: 'test-user' } };
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
     const [filter, setFilter] = useState({ text: '', category: '', color: '' });
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
-    const [selectedItem, setSelectedItem] = useState(null);
 
     // Fetch dei dati in tempo reale
     useEffect(() => {
@@ -1016,23 +1021,11 @@ const HomeScreen = ({ user, setViewMode }) => {
         try {
             // ❌ AUTH DISABILITATO - Logout simulato
             console.log("Logout simulato");
-            setUser(null);
-            setViewMode('auth');
+            navigation.replace('Auth');
         } catch (error) {
             alert("Errore Disconnessione: " + error.message);
         }
     };
-
-    // Navigazione a Dettaglio Articolo
-    if (selectedItem) {
-        return (
-            <DetailScreen 
-                item={selectedItem}
-                onGoBack={() => setSelectedItem(null)}
-                onDelete={() => setSelectedItem(null)} // Quando l'articolo è eliminato, torna alla Home
-            />
-        );
-    }
 
     return (
         <View style={styles.contentContainer}>
@@ -1101,21 +1094,21 @@ const HomeScreen = ({ user, setViewMode }) => {
                         <ItemCard 
                             key={item.id} 
                             item={item} 
-                            onClick={setSelectedItem} // Cliccando sulla card si apre il dettaglio
+                            onClick={(selectedItem) => navigation.navigate('Detail', { item: selectedItem })}
                         />
                     ))}
                 </View>
             )}
 
             <TouchableOpacity 
-                onPress={() => setViewMode('add')} 
+                onPress={() => navigation.navigate('AddItem', { user })} 
                 style={fabStyles}
                 title="Aggiungi nuovo capo"
             >
                 <Text style={{fontSize: 28, color: 'white'}}>➕</Text>
             </TouchableOpacity>
              <TouchableOpacity 
-                onPress={() => setViewMode('outfit')} 
+                onPress={() => navigation.navigate('OutfitBuilder', { user, items })} 
                 style={outfitButtonStyles}
                 title="Genera Outfit con AI"
             >
@@ -1130,10 +1123,8 @@ const HomeScreen = ({ user, setViewMode }) => {
 // ====================================================================
 
 const App = () => {
-    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('home'); 
-    const [items, setItems] = useState([]);
+    const [user, setUser] = useState(null);
 
     // Previeni l'auto-hide dello splash screen
     SplashScreen.preventAutoHideAsync().catch(console.warn);
@@ -1152,29 +1143,6 @@ const App = () => {
         hideSplash();
     }, [loading]);
 
-    // Fetch dei dati per l'Outfit Builder (duplica la logica di fetching da HomeScreen)
-    useEffect(() => {
-        if (!user || !user.uid) return;
-
-        const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
-        
-        // Questo listener è necessario per passare l'inventario aggiornato all'Outfit Builder
-        const unsubscribe = firestore()
-            .collection(itemsCollectionPath)
-            .onSnapshot((snapshot) => {
-                const fetchedItems = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setItems(fetchedItems);
-            }, (error) => {
-                console.error("Errore nel fetching globale degli articoli:", error);
-            });
-
-        return () => unsubscribe(); 
-    }, [user]);
-
-
     useEffect(() => {
         // ❌ AUTH DISABILITATO - Skip diretto alla home
         const initApp = async () => {
@@ -1182,17 +1150,13 @@ const App = () => {
                 console.log('App inizializzata senza Auth');
                 setUser({ uid: 'test-user' }); // Utente mock
                 setLoading(false);
-                setViewMode('home');
             } catch (err) {
                 console.error("Errore di inizializzazione:", err);
                 setLoading(false);
-                setViewMode('home'); // Anche in caso di errore vai alla home
             }
         };
 
         initApp();
-
-        return () => {}; // Nessun cleanup necessario
     }, []);
 
     if (loading) {
@@ -1204,17 +1168,6 @@ const App = () => {
         );
     }
 
-    let CurrentComponent;
-    if (!user) {
-        CurrentComponent = AuthScreen;
-    } else if (viewMode === 'add') {
-        CurrentComponent = AddItemScreen;
-    } else if (viewMode === 'outfit') {
-        CurrentComponent = OutfitBuilderScreen;
-    } else {
-        CurrentComponent = HomeScreen;
-    }
-
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar 
@@ -1222,9 +1175,50 @@ const App = () => {
                 backgroundColor="#ffffff"
                 translucent={false}
             />
-            <View style={styles.container}>
-                <CurrentComponent user={user} setViewMode={setViewMode} items={items} />
-            </View>
+            <NavigationContainer>
+                <Stack.Navigator
+                    initialRouteName={user ? "Home" : "Auth"}
+                    screenOptions={{
+                        headerShown: false,
+                        animation: 'default',
+                        contentStyle: { backgroundColor: '#F7F9FB' }
+                    }}
+                >
+                    <Stack.Screen 
+                        name="Auth" 
+                        component={AuthScreen}
+                    />
+                    <Stack.Screen 
+                        name="Home" 
+                        component={HomeScreen}
+                        initialParams={{ user }}
+                    />
+                    <Stack.Screen 
+                        name="Detail" 
+                        component={DetailScreen}
+                        options={{
+                            animation: 'slide_from_right',
+                            presentation: 'card'
+                        }}
+                    />
+                    <Stack.Screen 
+                        name="AddItem" 
+                        component={AddItemScreen}
+                        options={{
+                            animation: 'slide_from_bottom',
+                            presentation: 'card'
+                        }}
+                    />
+                    <Stack.Screen 
+                        name="OutfitBuilder" 
+                        component={OutfitBuilderScreen}
+                        options={{
+                            animation: 'slide_from_right',
+                            presentation: 'card'
+                        }}
+                    />
+                </Stack.Navigator>
+            </NavigationContainer>
         </SafeAreaView>
     );
 };
