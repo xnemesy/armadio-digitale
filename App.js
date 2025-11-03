@@ -64,7 +64,8 @@ const __app_id = typeof __app_id !== 'undefined' ? __app_id : 'armadio-digitale-
 const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
 
 // *** CHIAVE API GEMINI - Caricata da expo-constants extra ***
-const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY || ""; 
+const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyB7zXvfWtBRk61es-Om6d_uVKXILiJJZbk"; 
+console.log('🔑 Gemini API Key loaded:', apiKey ? `${apiKey.substring(0, 15)}...` : 'MISSING!');
 
 // LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando expo-constants extra
 const firebaseConfig = {
@@ -248,7 +249,7 @@ const getOutfitSuggestion = async (availableItems, userRequest) => {
                         Inventario disponibile: ${inventory}. 
                         Descrivi l'outfit in modo entusiasta, menzionando i nomi dei capi utilizzati (usa gli ID per riferimento).`;
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
     
     const payload = {
         contents: [{ parts: [{ text: userPrompt }] }],
@@ -332,6 +333,7 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 <Text style={detailStyles.title}>👗 Outfit Builder AI</Text>
             </View>
 
+            <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 20}}>
             <View style={outfitStyles.inputArea}>
                 <TextInput
                     style={outfitStyles.textarea}
@@ -354,10 +356,10 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
             </View>
             
             {suggestion && (
-                <View style={outfitStyles.resultBox}>
+                <ScrollView style={outfitStyles.resultBox}>
                     <Text style={outfitStyles.resultTitle}>Suggerimento del tuo Stylist AI</Text>
                     <Text style={outfitStyles.resultText}>{suggestion}</Text>
-                </View>
+                </ScrollView>
             )}
             
             <View style={outfitStyles.inventoryPreview}>
@@ -372,6 +374,7 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 </View>
                 <Text style={outfitStyles.note}>L'AI utilizzerà questi capi per il suggerimento.</Text>
             </View>
+            </ScrollView>
         </View>
     );
 };
@@ -1874,6 +1877,7 @@ const outfitStyles = {
         borderWidth: 1,
         borderColor: '#26A69A',
         marginBottom: 30,
+        maxHeight: 400, // Limita altezza per abilitare scroll
     },
     resultTitle: {
         fontSize: 20,
