@@ -8,6 +8,44 @@ const secretClient = new SecretManagerServiceClient();
 // Cache per l'API key (evita chiamate ripetute a Secret Manager)
 let cachedApiKey = null;
 
+// Rate limiting: mappa IP -> array di timestamp
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minuto
+const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 richieste al minuto per IP
+
+/**
+ * Rate limiter middleware
+ */
+function checkRateLimit(clientIp) {
+  const now = Date.now();
+  
+  if (!rateLimitMap.has(clientIp)) {
+    rateLimitMap.set(clientIp, []);
+  }
+  
+  const timestamps = rateLimitMap.get(clientIp);
+  
+  // Rimuovi timestamp più vecchi della finestra
+  const recentTimestamps = timestamps.filter(ts => now - ts < RATE_LIMIT_WINDOW_MS);
+  
+  if (recentTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
+    const oldestTimestamp = Math.min(...recentTimestamps);
+    const retryAfterSeconds = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldestTimestamp)) / 1000);
+    
+    console.warn(`⚠️ Rate limit exceeded for IP: ${clientIp}`);
+    return {
+      limited: true,
+      retryAfter: retryAfterSeconds
+    };
+  }
+  
+  // Aggiungi timestamp corrente
+  recentTimestamps.push(now);
+  rateLimitMap.set(clientIp, recentTimestamps);
+  
+  return { limited: false };
+}
+
 /**
  * Recupera la Gemini API key da Secret Manager
  */
@@ -52,6 +90,19 @@ async function getGeminiApiKey() {
  * }
  */
 functions.http('analyzeImage', async (req, res) => {
+  const startTime = Date.now();
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+  
+  // Structured logging
+  const logContext = {
+    clientIp,
+    method: req.method,
+    userAgent: req.headers['user-agent'] || 'unknown',
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('📥 Incoming request:', JSON.stringify(logContext));
+
   // CORS headers
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -59,11 +110,29 @@ functions.http('analyzeImage', async (req, res) => {
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
+    console.log('✅ CORS preflight handled');
     return res.status(204).send('');
+  }
+
+  // Rate limiting check
+  const rateLimitResult = checkRateLimit(clientIp);
+  if (rateLimitResult.limited) {
+    console.error('🚫 Rate limit exceeded:', JSON.stringify({ 
+      clientIp, 
+      retryAfter: rateLimitResult.retryAfter 
+    }));
+    
+    res.set('Retry-After', rateLimitResult.retryAfter.toString());
+    return res.status(429).json({
+      success: false,
+      error: 'Troppe richieste. Riprova tra qualche secondo.',
+      retryAfter: rateLimitResult.retryAfter
+    });
   }
 
   // Validazione metodo HTTP
   if (req.method !== 'POST') {
+    console.warn('⚠️ Invalid method:', req.method);
     return res.status(405).json({
       success: false,
       error: 'Metodo non consentito. Usa POST.'
@@ -75,13 +144,30 @@ functions.http('analyzeImage', async (req, res) => {
     const { imageBase64, mimeType = 'image/jpeg' } = req.body;
 
     if (!imageBase64) {
+      console.error('❌ Missing imageBase64 parameter');
       return res.status(400).json({
         success: false,
         error: 'Parametro imageBase64 mancante'
       });
     }
 
-    console.log(`📸 Richiesta analisi immagine (${mimeType})`);
+    // Validazione dimensione (max 10MB base64 = ~7.5MB immagine)
+    const imageSizeBytes = Buffer.byteLength(imageBase64, 'base64');
+    const imageSizeMB = (imageSizeBytes / 1024 / 1024).toFixed(2);
+    
+    console.log(`📸 Richiesta analisi immagine:`, JSON.stringify({
+      mimeType,
+      sizeBytes: imageSizeBytes,
+      sizeMB: imageSizeMB
+    }));
+
+    if (imageSizeBytes > 10 * 1024 * 1024) {
+      console.error('❌ Image too large:', imageSizeMB, 'MB');
+      return res.status(413).json({
+        success: false,
+        error: `Immagine troppo grande (${imageSizeMB}MB). Max 10MB.`
+      });
+    }
 
     // Recupera API key da Secret Manager
     const apiKey = await getGeminiApiKey();
@@ -102,7 +188,8 @@ functions.http('analyzeImage', async (req, res) => {
 
 Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
 
-    // Chiamata a Gemini
+    // Chiamata a Gemini con timeout
+    const geminiStartTime = Date.now();
     const result = await model.generateContent([
       prompt,
       {
@@ -112,11 +199,15 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
         }
       }
     ]);
+    const geminiDuration = Date.now() - geminiStartTime;
 
     const response = await result.response;
     const text = response.text();
 
-    console.log('🤖 Risposta Gemini:', text);
+    console.log('🤖 Gemini response:', JSON.stringify({
+      duration: geminiDuration,
+      responseLength: text.length
+    }));
 
     // Parse JSON dalla risposta
     let parsedData;
@@ -125,11 +216,11 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
       const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       parsedData = JSON.parse(cleanText);
     } catch (parseError) {
-      console.error('❌ Errore parsing JSON:', parseError);
+      console.error('❌ JSON parse error:', parseError.message);
       return res.status(500).json({
         success: false,
         error: 'Risposta Gemini non valida',
-        rawResponse: text
+        rawResponse: text.substring(0, 200) // Solo primi 200 caratteri per sicurezza
       });
     }
 
@@ -138,23 +229,40 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
     const missingFields = requiredFields.filter(field => !parsedData[field]);
 
     if (missingFields.length > 0) {
-      console.warn('⚠️ Campi mancanti:', missingFields);
+      console.warn('⚠️ Campi mancanti:', JSON.stringify(missingFields));
       // Aggiungi valori di default per campi mancanti
       missingFields.forEach(field => {
         parsedData[field] = 'Non specificato';
       });
     }
 
-    console.log('✅ Analisi completata:', parsedData);
+    const totalDuration = Date.now() - startTime;
+    
+    console.log('✅ Analisi completata:', JSON.stringify({
+      duration: totalDuration,
+      geminiDuration,
+      data: parsedData
+    }));
 
     // Risposta di successo
     return res.status(200).json({
       success: true,
-      data: parsedData
+      data: parsedData,
+      metadata: {
+        processingTime: totalDuration,
+        imageSize: imageSizeMB
+      }
     });
 
   } catch (error) {
-    console.error('❌ Errore Cloud Function:', error);
+    const totalDuration = Date.now() - startTime;
+    
+    console.error('❌ Cloud Function error:', JSON.stringify({
+      error: error.message,
+      stack: error.stack?.split('\n')[0], // Solo prima linea dello stack
+      duration: totalDuration,
+      clientIp
+    }));
 
     return res.status(500).json({
       success: false,

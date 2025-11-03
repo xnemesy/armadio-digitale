@@ -404,7 +404,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaType.Images,
+                mediaTypes: ['images'], // expo-image-picker v17+ usa array di stringhe
                 allowsEditing: true,
                 aspect: [3, 4], 
                 quality: 0.7, 
