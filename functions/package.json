@@ -9,6 +9,7 @@
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",
     "@google-cloud/secret-manager": "^5.6.0",
-    "@google/generative-ai": "^0.21.0"
+    "@google/generative-ai": "^0.21.0",
+    "redis": "^4.7.0"
   }
 }

@@ -1,12 +1,53 @@
 const functions = require('@google-cloud/functions-framework');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { createClient } = require('redis');
 
 // Inizializza Secret Manager client
 const secretClient = new SecretManagerServiceClient();
 
 // Cache per l'API key (evita chiamate ripetute a Secret Manager)
 let cachedApiKey = null;
+
+// Redis client
+let redisClient = null;
+const REDIS_HOST = process.env.REDIS_HOST || '10.64.224.131';
+const REDIS_PORT = process.env.REDIS_PORT || 6379;
+const CACHE_TTL = 60 * 60 * 24 * 7; // 7 giorni
+
+/**
+ * Inizializza connessione Redis (lazy initialization)
+ */
+async function getRedisClient() {
+  if (redisClient && redisClient.isOpen) {
+    return redisClient;
+  }
+
+  try {
+    redisClient = createClient({
+      socket: {
+        host: REDIS_HOST,
+        port: REDIS_PORT,
+        reconnectStrategy: (retries) => {
+          if (retries > 3) {
+            console.error('❌ Redis connection failed after 3 retries');
+            return new Error('Redis unavailable');
+          }
+          return Math.min(retries * 100, 3000);
+        }
+      }
+    });
+
+    redisClient.on('error', (err) => console.error('Redis Client Error:', err));
+    
+    await redisClient.connect();
+    console.log('✅ Redis connected');
+    return redisClient;
+  } catch (error) {
+    console.error('❌ Redis connection error:', error.message);
+    return null; // Graceful fallback
+  }
+}
 
 // Rate limiting: mappa IP -> array di timestamp
 const rateLimitMap = new Map();
@@ -151,6 +192,46 @@ functions.http('analyzeImage', async (req, res) => {
       });
     }
 
+    // Genera cache key (hash dell'immagine per evitare duplicati)
+    const crypto = require('crypto');
+    const imageHash = crypto.createHash('sha256').update(imageBase64).digest('hex');
+    const cacheKey = `gemini:analysis:${imageHash}`;
+
+    // Prova a recuperare da cache Redis
+    let cacheHit = false;
+    let cachedResult = null;
+    
+    const redis = await getRedisClient();
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          cachedResult = JSON.parse(cached);
+          cacheHit = true;
+          console.log('✅ Cache HIT:', cacheKey.substring(0, 30) + '...');
+        } else {
+          console.log('⚠️ Cache MISS:', cacheKey.substring(0, 30) + '...');
+        }
+      } catch (cacheError) {
+        console.warn('⚠️ Redis read error (continuing without cache):', cacheError.message);
+      }
+    }
+
+    // Se cache hit, restituisci immediatamente
+    if (cacheHit && cachedResult) {
+      const totalDuration = Date.now() - startTime;
+      console.log('🚀 Cache response:', JSON.stringify({ duration: totalDuration }));
+      
+      return res.status(200).json({
+        success: true,
+        data: cachedResult,
+        metadata: {
+          processingTime: totalDuration,
+          cached: true
+        }
+      });
+    }
+
     // Validazione dimensione (max 10MB base64 = ~7.5MB immagine)
     const imageSizeBytes = Buffer.byteLength(imageBase64, 'base64');
     const imageSizeMB = (imageSizeBytes / 1024 / 1024).toFixed(2);
@@ -244,13 +325,21 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
       data: parsedData
     }));
 
+    // Salva in cache Redis (fire-and-forget)
+    if (redis) {
+      redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(parsedData))
+        .then(() => console.log('💾 Cached result:', cacheKey.substring(0, 30) + '...'))
+        .catch(err => console.warn('⚠️ Redis write error:', err.message));
+    }
+
     // Risposta di successo
     return res.status(200).json({
       success: true,
       data: parsedData,
       metadata: {
         processingTime: totalDuration,
-        imageSize: imageSizeMB
+        imageSize: imageSizeMB,
+        cached: false
       }
     });
 
