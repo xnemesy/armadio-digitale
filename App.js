@@ -424,7 +424,7 @@ const AddItemScreen = ({ user, setViewMode }) => {
             }
 
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaType.Images,
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 aspect: [3, 4], 
                 quality: 0.7, 
