@@ -859,20 +859,26 @@ const DetailScreen = ({ navigation, route }) => {
           style={detailStyles.container}
         >
           <ScrollView>
-            <View style={detailStyles.header}>
+            <Animated.View entering={FadeIn.delay(100).duration(300)} style={detailStyles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>Dettaglio Capo</Text>
-            </View>
+            </Animated.View>
 
             <Animated.Image 
                 source={{ uri: item.thumbnailUrl }} 
                 style={detailStyles.image} 
                 sharedTransitionTag={`item-${item.id}`}
-                sharedTransitionStyle={() => {
+                sharedTransitionStyle={(values) => {
                     'worklet';
-                    return { borderRadius: 10 };
+                    return {
+                        borderRadius: 10,
+                        transform: [
+                            { scale: values.targetOriginX !== undefined ? 1 : 0.95 }
+                        ],
+                        opacity: values.progress !== undefined ? values.progress : 1,
+                    };
                 }}
             />
             
@@ -947,9 +953,14 @@ const ItemCard = ({ item, onClick }) => {
                 source={{ uri: imageUrl }} 
                 style={itemCardStyles.image} 
                 sharedTransitionTag={`item-${item.id}`}
-                sharedTransitionStyle={() => {
+                sharedTransitionStyle={(values) => {
                     'worklet';
-                    return { borderRadius: 10 };
+                    return {
+                        borderRadius: 10,
+                        transform: [
+                            { scale: values.targetOriginX !== undefined ? 1.05 : 1 }
+                        ],
+                    };
                 }}
             />
                 <View style={itemCardStyles.info}>
@@ -1197,8 +1208,34 @@ const App = () => {
                         name="Detail" 
                         component={DetailScreen}
                         options={{
-                            animation: 'slide_from_right',
-                            presentation: 'card'
+                            animation: 'default',
+                            presentation: 'card',
+                            gestureEnabled: true,
+                            gestureDirection: 'horizontal',
+                            transitionSpec: {
+                                open: {
+                                    animation: 'spring',
+                                    config: {
+                                        stiffness: 1000,
+                                        damping: 500,
+                                        mass: 3,
+                                        overshootClamping: true,
+                                        restDisplacementThreshold: 0.01,
+                                        restSpeedThreshold: 0.01,
+                                    },
+                                },
+                                close: {
+                                    animation: 'spring',
+                                    config: {
+                                        stiffness: 1000,
+                                        damping: 500,
+                                        mass: 3,
+                                        overshootClamping: true,
+                                        restDisplacementThreshold: 0.01,
+                                        restSpeedThreshold: 0.01,
+                                    },
+                                },
+                            },
                         }}
                     />
                     <Stack.Screen 
