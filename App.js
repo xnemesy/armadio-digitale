@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { 
   View, 
   Text, 
@@ -662,14 +663,25 @@ const AddItemScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
             </View>
             
-            {/* MESSAGGIO DUPLICATO */}
+            {/* BANNER DUPLICATO NON-MODALE */}
             {duplicateFound && (
-                <View style={duplicateWarningStyles}>
-                    <Text style={{fontWeight: '600'}}>⚠️ Capo Simile Trovato!</Text>
-                    <Text style={{marginTop: 5, fontSize: 14}}>
-                        Hai già un articolo di tipo **{duplicateFound.category}** di colore **{duplicateFound.mainColor}** chiamato "{duplicateFound.name}". 
-                        Se non è un duplicato, puoi procedere con l'aggiunta.
-                    </Text>
+                <View style={duplicateBannerStyles.container}>
+                    <View style={duplicateBannerStyles.iconContainer}>
+                        <Text style={duplicateBannerStyles.icon}>⚠️</Text>
+                    </View>
+                    <View style={duplicateBannerStyles.content}>
+                        <Text style={duplicateBannerStyles.title}>Capo Simile Trovato!</Text>
+                        <Text style={duplicateBannerStyles.message}>
+                            Hai già "{duplicateFound.name}" ({duplicateFound.category}, {duplicateFound.mainColor}). 
+                            Verifica se è un duplicato prima di aggiungerlo.
+                        </Text>
+                    </View>
+                    <TouchableOpacity 
+                        onPress={() => setDuplicateFound(null)}
+                        style={duplicateBannerStyles.closeButton}
+                    >
+                        <Text style={duplicateBannerStyles.closeIcon}>✕</Text>
+                    </TouchableOpacity>
                 </View>
             )}
             
@@ -677,55 +689,65 @@ const AddItemScreen = ({ navigation, route }) => {
             <View style={addItemStyles.metadataForm}>
                 <Text style={addItemStyles.metadataTitle}>Dati Articolo (Modificabili)</Text>
                 
-                <Text style={addItemStyles.label}>Nome Articolo (AI):</Text>
-                <TextInput 
-                    value={metadata.name} 
-                    onChangeText={text => setMetadata(prev => ({...prev, name: text}))}
-                    style={addItemStyles.input} 
-                    placeholder="Nome (es. Maglione Oversize)"
-                    placeholderTextColor="#9CA3AF"
-                    selectionColor="#4F46E5"
-                />
+                <View style={addItemStyles.fieldGroup}>
+                    <Text style={addItemStyles.label}>Nome Articolo</Text>
+                    <TextInput 
+                        value={metadata.name} 
+                        onChangeText={text => setMetadata(prev => ({...prev, name: text}))}
+                        style={addItemStyles.input} 
+                        placeholder="Nome (es. Maglione Oversize)"
+                        placeholderTextColor="#9CA3AF"
+                        selectionColor="#4F46E5"
+                    />
+                </View>
                 
-                <Text style={addItemStyles.label}>Categoria (AI):</Text>
-                <TextInput 
-                    value={metadata.category} 
-                    onChangeText={text => setMetadata(prev => ({...prev, category: text}))}
-                    style={addItemStyles.input} 
-                    placeholder="Categoria (es. Maglione)"
-                    placeholderTextColor="#9CA3AF"
-                    selectionColor="#4F46E5"
-                />
+                <View style={addItemStyles.fieldGroup}>
+                    <Text style={addItemStyles.label}>Categoria</Text>
+                    <TextInput 
+                        value={metadata.category} 
+                        onChangeText={text => setMetadata(prev => ({...prev, category: text}))}
+                        style={addItemStyles.input} 
+                        placeholder="Categoria (es. Maglione)"
+                        placeholderTextColor="#9CA3AF"
+                        selectionColor="#4F46E5"
+                    />
+                </View>
                 
-                <Text style={addItemStyles.label}>Colore Principale (AI):</Text>
-                <TextInput 
-                    value={metadata.mainColor} 
-                    onChangeText={text => setMetadata(prev => ({...prev, mainColor: text}))}
-                    style={addItemStyles.input} 
-                    placeholder="Colore (es. Rosso)"
-                    placeholderTextColor="#9CA3AF"
-                    selectionColor="#4F46E5"
-                />
+                <View style={addItemStyles.fieldGroup}>
+                    <Text style={addItemStyles.label}>Colore Principale</Text>
+                    <TextInput 
+                        value={metadata.mainColor} 
+                        onChangeText={text => setMetadata(prev => ({...prev, mainColor: text}))}
+                        style={addItemStyles.input} 
+                        placeholder="Colore (es. Rosso)"
+                        placeholderTextColor="#9CA3AF"
+                        selectionColor="#4F46E5"
+                    />
+                </View>
                 
-                <Text style={addItemStyles.label}>Marca:</Text>
-                <TextInput 
-                    value={metadata.brand} 
-                    onChangeText={text => setMetadata(prev => ({...prev, brand: text}))}
-                    style={addItemStyles.input} 
-                    placeholder="Marca (es. Zara)"
-                    placeholderTextColor="#9CA3AF"
-                    selectionColor="#4F46E5"
-                />
+                <View style={addItemStyles.fieldGroup}>
+                    <Text style={addItemStyles.label}>Marca</Text>
+                    <TextInput 
+                        value={metadata.brand} 
+                        onChangeText={text => setMetadata(prev => ({...prev, brand: text}))}
+                        style={addItemStyles.input} 
+                        placeholder="Marca (es. Zara)"
+                        placeholderTextColor="#9CA3AF"
+                        selectionColor="#4F46E5"
+                    />
+                </View>
                 
-                <Text style={addItemStyles.label}>Taglia:</Text>
-                <TextInput 
-                    value={metadata.size} 
-                    onChangeText={text => setMetadata(prev => ({...prev, size: text}))}
-                    style={addItemStyles.input} 
-                    placeholder="Taglia (es. M / 42)"
-                    placeholderTextColor="#9CA3AF"
-                    selectionColor="#4F46E5"
-                />
+                <View style={addItemStyles.fieldGroup}>
+                    <Text style={addItemStyles.label}>Taglia</Text>
+                    <TextInput 
+                        value={metadata.size} 
+                        onChangeText={text => setMetadata(prev => ({...prev, size: text}))}
+                        style={addItemStyles.input} 
+                        placeholder="Taglia (es. M / 42)"
+                        placeholderTextColor="#9CA3AF"
+                        selectionColor="#4F46E5"
+                    />
+                </View>
             </View>
             
             {/* Suggerimenti E-commerce */}
@@ -1115,34 +1137,36 @@ const HomeScreen = ({ navigation, route }) => {
             {/* Componente Filtri */}
             <View style={filterStyles.container}>
                 <TextInput
-                    style={filterStyles.input}
+                    style={filterStyles.searchInput}
                     placeholder="Cerca per nome o marca..."
                     placeholderTextColor="#9CA3AF"
                     value={filter.text}
                     onChangeText={text => setFilter(prev => ({...prev, text}))}
                 />
-                <Picker
-                    selectedValue={filter.category}
-                    onValueChange={value => setFilter(prev => ({...prev, category: value}))}
-                    style={filterStyles.select}
-                    dropdownIconColor="#111827"
-                >
-                    <Picker.Item label="Tutte le categorie" value="" />
-                    {categories.map(cat => (
-                        <Picker.Item key={cat} label={cat} value={cat} />
-                    ))}
-                </Picker>
-                <Picker
-                    selectedValue={filter.color}
-                    onValueChange={value => setFilter(prev => ({...prev, color: value}))}
-                    style={filterStyles.select}
-                    dropdownIconColor="#111827"
-                >
-                    <Picker.Item label="Tutti i colori" value="" />
-                    {colors.map(color => (
-                        <Picker.Item key={color} label={color} value={color} />
-                    ))}
-                </Picker>
+                <View style={filterStyles.pickerRow}>
+                    <Picker
+                        selectedValue={filter.category}
+                        onValueChange={value => setFilter(prev => ({...prev, category: value}))}
+                        style={filterStyles.picker}
+                        dropdownIconColor="#111827"
+                    >
+                        <Picker.Item label="Tutte le categorie" value="" />
+                        {categories.map(cat => (
+                            <Picker.Item key={cat} label={cat} value={cat} />
+                        ))}
+                    </Picker>
+                    <Picker
+                        selectedValue={filter.color}
+                        onValueChange={value => setFilter(prev => ({...prev, color: value}))}
+                        style={filterStyles.picker}
+                        dropdownIconColor="#111827"
+                    >
+                        <Picker.Item label="Tutti i colori" value="" />
+                        {colors.map(color => (
+                            <Picker.Item key={color} label={color} value={color} />
+                        ))}
+                    </Picker>
+                </View>
             </View>
 
             <Text style={styles.subtitle}>
@@ -1173,14 +1197,20 @@ const HomeScreen = ({ navigation, route }) => {
             )}
 
             <TouchableOpacity 
-                onPress={() => navigation.navigate('AddItem', { user })} 
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    navigation.navigate('AddItem', { user });
+                }} 
                 style={fabStyles}
                 title="Aggiungi nuovo capo"
             >
                 <Text style={{fontSize: 28, color: 'white'}}>➕</Text>
             </TouchableOpacity>
              <TouchableOpacity 
-                onPress={() => navigation.navigate('OutfitBuilder', { user, items })} 
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    navigation.navigate('OutfitBuilder', { user, items });
+                }} 
                 style={outfitButtonStyles}
                 title="Genera Outfit con AI"
             >
@@ -1680,6 +1710,9 @@ const addItemStyles = {
         borderRadius: 12,
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
     },
+    fieldGroup: {
+        marginBottom: 16,
+    },
     metadataTitle: {
         fontSize: 18,
         fontWeight: '600',
@@ -1719,16 +1752,48 @@ const addItemStyles = {
     }
 };
 
-const duplicateWarningStyles = {
-    padding: 15,
-    backgroundColor: '#FFFBEB', 
-    borderWidth: 1,
-    borderColor: '#F59E0B',
-    color: '#92400E',
-    borderRadius: 8,
-    marginBottom: 20,
-    fontWeight: '600',
-    fontSize: 16
+// Stili Banner Duplicato Non-Modale
+const duplicateBannerStyles = {
+    container: {
+        flexDirection: 'row',
+        backgroundColor: '#FFFBEB',
+        borderWidth: 2,
+        borderColor: '#F59E0B',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        alignItems: 'flex-start',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    },
+    iconContainer: {
+        marginRight: 12,
+    },
+    icon: {
+        fontSize: 24,
+    },
+    content: {
+        flex: 1,
+        marginRight: 8,
+    },
+    title: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#92400E',
+        marginBottom: 4,
+    },
+    message: {
+        fontSize: 14,
+        color: '#78350F',
+        lineHeight: 20,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    closeIcon: {
+        fontSize: 18,
+        color: '#92400E',
+        fontWeight: '700',
+    },
 };
 
 const recommendationStyles = {
@@ -1895,29 +1960,36 @@ const detailStyles = {
 
 const filterStyles = {
     container: {
-        flexDirection: 'row',
-        gap: 10,
         marginBottom: 20,
-        flexWrap: 'wrap',
     },
-    input: {
-        flex: 1,
-        minWidth: 150,
-        padding: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        color: '#111827',
-    },
-    select: {
-        padding: 8,
-        borderRadius: 8,
+    searchInput: {
+        width: '100%',
+        padding: 12,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#E5E7EB',
         backgroundColor: '#FFFFFF',
-        flex: 1,
-        minWidth: 120,
         color: '#111827',
+        fontSize: 15,
+        marginBottom: 10,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+    },
+    pickerRow: {
+        flexDirection: 'row',
+        gap: 10,
+        flexWrap: 'wrap',
+    },
+    picker: {
+        flex: 1,
+        minWidth: 145,
+        padding: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+        color: '#111827',
+        fontSize: 14,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
     }
 };
 
