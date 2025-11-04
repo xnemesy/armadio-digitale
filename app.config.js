@@ -16,7 +16,10 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.armadiodigitale.app",
-      googleServicesFile: "./GoogleService-Info.plist"
+      googleServicesFile: "./ios/ArmadioDigitale/GoogleService-Info.plist",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       package: "com.armadiodigitale.app",
