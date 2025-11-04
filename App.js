@@ -436,6 +436,47 @@ const AddItemScreen = ({ navigation, route }) => {
             console.error("Errore gestione immagine:", error);
         }
     };
+
+    // Gestione scatto foto con fotocamera
+    const handleTakePhoto = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+            if (!permissionResult.granted) {
+                Alert.alert("Permesso negato", "Serve l'accesso alla fotocamera per scattare foto");
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [3, 4],
+                quality: 0.7,
+                base64: true,
+            });
+
+            if (!result.canceled) {
+                const uri = result.assets[0].uri;
+                const base64 = result.assets[0].base64;
+                
+                setImagePreview(uri);
+                setImageLocalUri(uri);
+                setImageBase64(base64);
+                
+                // Resetta stato
+                setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
+                setRecommendations([]);
+                setDuplicateFound(null);
+
+                if (base64) {
+                    analyzeAndCheck(base64);
+                } else {
+                    Alert.alert("Errore", "Impossibile ottenere Base64 per l'analisi AI.");
+                }
+            }
+        } catch (error) {
+            Alert.alert("Errore", "Impossibile scattare la foto: " + error.message);
+            console.error("Errore scatto foto:", error);
+        }
+    };
     
     // Funzione per cercare duplicati in Firestore (sintassi nativa)
     const checkDuplicate = async (aiMetadata) => {
@@ -588,21 +629,38 @@ const AddItemScreen = ({ navigation, route }) => {
                  {status}
             </Text>
 
-            {/* Area Caricamento Immagine */}
-            <TouchableOpacity 
-                onPress={handleImageChange} 
-                style={addItemStyles.imageUploadArea}
-                disabled={loading}
-            >
-                {imagePreview ? (
+            {/* Area Preview Immagine */}
+            {imagePreview ? (
+                <View style={addItemStyles.imageUploadArea}>
                     <Image source={{ uri: imagePreview }} style={addItemStyles.imagePreview} />
-                ) : (
-                    <View style={addItemStyles.placeholder}>
-                        <Text style={{ fontSize: 32, color: '#6B7280' }}>📷</Text>
-                        <Text style={{ color: '#6B7280' }}>Scatta o carica una foto</Text>
-                    </View>
-                )}
-            </TouchableOpacity>
+                </View>
+            ) : (
+                <View style={addItemStyles.placeholder}>
+                    <Text style={{ fontSize: 48, color: '#6B7280' }}>📷</Text>
+                    <Text style={{ color: '#6B7280', marginTop: 8 }}>Scegli come aggiungere la foto</Text>
+                </View>
+            )}
+
+            {/* Pulsanti Fotocamera e Galleria */}
+            <View style={addItemStyles.buttonRow}>
+                <TouchableOpacity 
+                    onPress={handleTakePhoto}
+                    style={[addItemStyles.actionButton, addItemStyles.cameraButton]}
+                    disabled={loading}
+                >
+                    <Text style={addItemStyles.buttonIcon}>📸</Text>
+                    <Text style={addItemStyles.buttonText}>Scatta Foto</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    onPress={handleImageChange}
+                    style={[addItemStyles.actionButton, addItemStyles.galleryButton]}
+                    disabled={loading}
+                >
+                    <Text style={addItemStyles.buttonIcon}>🖼️</Text>
+                    <Text style={addItemStyles.buttonText}>Dalla Galleria</Text>
+                </TouchableOpacity>
+            </View>
             
             {/* MESSAGGIO DUPLICATO */}
             {duplicateFound && (
@@ -1584,6 +1642,36 @@ const addItemStyles = {
         maxHeight: 300,
         objectFit: 'cover',
         borderRadius: 10,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 25,
+    },
+    actionButton: {
+        flex: 1,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+    },
+    cameraButton: {
+        backgroundColor: '#EEF2FF',
+        borderColor: '#4F46E5',
+    },
+    galleryButton: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#10B981',
+    },
+    buttonIcon: {
+        fontSize: 32,
+        marginBottom: 4,
+    },
+    buttonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1F2937',
     },
     metadataForm: {
         marginBottom: 30,
