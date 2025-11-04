@@ -32,6 +32,41 @@ import firestore from '@react-native-firebase/firestore';
 
 const Stack = createNativeStackNavigator();
 
+// ====================================================================
+// Design System - Palette Dark/Minimal (The Athletic Style)
+// ====================================================================
+const COLORS = {
+    // Background
+    background: '#0A0A0A',        // Nero profondo
+    surface: '#1A1A1A',           // Surface cards
+    surfaceLight: '#2A2A2A',      // Surface hover/elevated
+    
+    // Accent (Verde Smeraldo/Lime - Trend 2025)
+    primary: '#10B981',           // Emerald-500
+    primaryDark: '#059669',       // Emerald-600
+    primaryLight: '#34D399',      // Emerald-400
+    
+    // Text
+    textPrimary: '#F9FAFB',       // Bianco quasi puro
+    textSecondary: '#D1D5DB',     // Grigio chiaro
+    textMuted: '#9CA3AF',         // Grigio medio
+    
+    // Borders & Dividers
+    border: '#374151',            // Grigio scuro
+    borderLight: '#4B5563',       // Grigio medio-scuro
+    
+    // Status
+    success: '#10B981',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    info: '#3B82F6',
+    
+    // Bottom Nav
+    navBackground: '#1A1A1A',
+    navInactive: '#6B7280',
+    navActive: '#10B981',
+};
+
 // Scelta build: EXPO (managed) + EAS (build AAB/APK)
 // Motivo: migliore integrazione con camera/image-picker, workflow EAS per build firmate,
 // supporto rapido a iOS/Android, gestione credenziali con EAS secrets.
@@ -350,17 +385,26 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                     style={loading ? authStyles.disabledButton : outfitStyles.generateButton}
                     disabled={loading}
                 >
-                    <Text style={{color: 'white', fontWeight: '600', fontSize: 16}}>
-                        {loading ? 'Generazione in corso...' : 'Genera Outfit'}
-                    </Text>
+                    {loading ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                            <Text style={{color: '#FFFFFF', fontWeight: '600', fontSize: 16}}>
+                                Generazione in corso...
+                            </Text>
+                        </View>
+                    ) : (
+                        <Text style={{color: 'white', fontWeight: '600', fontSize: 16}}>
+                            Genera Outfit
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </View>
             
             {suggestion && (
-                <ScrollView style={outfitStyles.resultBox}>
+                <View style={outfitStyles.resultBox}>
                     <Text style={outfitStyles.resultTitle}>Suggerimento del tuo Stylist AI</Text>
                     <Text style={outfitStyles.resultText}>{suggestion}</Text>
-                </ScrollView>
+                </View>
             )}
             
             <View style={outfitStyles.inventoryPreview}>
@@ -617,30 +661,39 @@ const AddItemScreen = ({ navigation, route }) => {
     };
 
     return (
-        <View style={addItemStyles.container}>
-            <View style={addItemStyles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
-                </TouchableOpacity>
-                <Text style={addItemStyles.title}>Aggiungi Nuovo Capo</Text>
-            </View>
-            
-            <Text style={addItemStyles.statusText}>
-                 {loading && <ActivityIndicator size="small" color="#4F46E5" style={{marginRight: 8}} />}
-                 {status}
-            </Text>
+        <KeyboardAvoidingView 
+            style={{ flex: 1 }} 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <View style={addItemStyles.container}>
+                <View style={addItemStyles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
+                    </TouchableOpacity>
+                    <Text style={addItemStyles.title}>Aggiungi Nuovo Capo</Text>
+                </View>
+                
+                <ScrollView 
+                    style={{ flex: 1 }}
+                    showsVerticalScrollIndicator={true}
+                    contentContainerStyle={{ paddingBottom: 30 }}
+                >
+                    <Text style={addItemStyles.statusText}>
+                         {loading && <ActivityIndicator size="small" color="#4F46E5" style={{marginRight: 8}} />}
+                         {status}
+                    </Text>
 
-            {/* Area Preview Immagine */}
-            {imagePreview ? (
-                <View style={addItemStyles.imageUploadArea}>
-                    <Image source={{ uri: imagePreview }} style={addItemStyles.imagePreview} />
-                </View>
-            ) : (
-                <View style={addItemStyles.placeholder}>
-                    <Text style={{ fontSize: 48, color: '#6B7280' }}>📷</Text>
-                    <Text style={{ color: '#6B7280', marginTop: 8 }}>Scegli come aggiungere la foto</Text>
-                </View>
-            )}
+                    {/* Area Preview Immagine */}
+                    {imagePreview ? (
+                        <View style={addItemStyles.imageUploadArea}>
+                            <Image source={{ uri: imagePreview }} style={addItemStyles.imagePreview} />
+                        </View>
+                    ) : (
+                        <View style={addItemStyles.placeholder}>
+                            <Text style={{ fontSize: 48, color: '#6B7280' }}>📷</Text>
+                            <Text style={{ color: '#6B7280', marginTop: 8 }}>Scegli come aggiungere la foto</Text>
+                        </View>
+                    )}
 
             {/* Pulsanti Fotocamera e Galleria */}
             <View style={addItemStyles.buttonRow}>
@@ -778,7 +831,9 @@ const AddItemScreen = ({ navigation, route }) => {
                     {loading ? 'SALVATAGGIO...' : 'SALVA CAPO NELL\'ARMADIO'}
                 </Text>
             </TouchableOpacity>
-        </View>
+                </ScrollView>
+            </View>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -787,6 +842,150 @@ const AddItemScreen = ({ navigation, route }) => {
 // Componente Autenticazione (AuthScreen)
 // ====================================================================
 
+// ====================================================================
+// Profile Screen (Account & Settings)
+// ====================================================================
+const ProfileScreen = ({ navigation, route }) => {
+    const { user } = route.params || { user: { uid: 'test-user' } };
+    const [itemsCount, setItemsCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user || !user.uid) return;
+
+        const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
+        
+        firestore()
+            .collection(itemsCollectionPath.split('/')[0])
+            .doc(itemsCollectionPath.split('/')[1])
+            .collection(itemsCollectionPath.split('/')[2])
+            .doc(itemsCollectionPath.split('/')[3])
+            .collection('items')
+            .get()
+            .then((snapshot) => {
+                setItemsCount(snapshot.size);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.error('Errore caricamento stats:', error);
+                setLoading(false);
+            });
+    }, [user]);
+
+    const handleLogout = () => {
+        Alert.alert(
+            'Logout',
+            'Sei sicuro di voler uscire?',
+            [
+                { text: 'Annulla', style: 'cancel' },
+                { 
+                    text: 'Esci', 
+                    style: 'destructive',
+                    onPress: () => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        navigation.replace('Auth');
+                    }
+                }
+            ]
+        );
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <View style={profileStyles.container}>
+                {/* Header */}
+                <View style={profileStyles.header}>
+                    <Text style={profileStyles.headerTitle}>Profilo</Text>
+                </View>
+
+                <ScrollView 
+                    style={profileStyles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* User Info Card */}
+                    <View style={profileStyles.userCard}>
+                        <View style={profileStyles.avatarContainer}>
+                            <Text style={profileStyles.avatarIcon}>👤</Text>
+                        </View>
+                        <Text style={profileStyles.userName}>
+                            {user.email || 'Utente'}
+                        </Text>
+                        <Text style={profileStyles.userEmail}>
+                            {user.email || 'user@example.com'}
+                        </Text>
+                    </View>
+
+                    {/* Stats Card */}
+                    <View style={profileStyles.statsCard}>
+                        <Text style={profileStyles.sectionTitle}>Statistiche</Text>
+                        <View style={profileStyles.statsRow}>
+                            <View style={profileStyles.statItem}>
+                                <Text style={profileStyles.statValue}>
+                                    {loading ? '...' : itemsCount}
+                                </Text>
+                                <Text style={profileStyles.statLabel}>Capi</Text>
+                            </View>
+                            <View style={profileStyles.divider} />
+                            <View style={profileStyles.statItem}>
+                                <Text style={profileStyles.statValue}>0</Text>
+                                <Text style={profileStyles.statLabel}>Outfit</Text>
+                            </View>
+                            <View style={profileStyles.divider} />
+                            <View style={profileStyles.statItem}>
+                                <Text style={profileStyles.statValue}>0</Text>
+                                <Text style={profileStyles.statLabel}>Look</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Settings Card */}
+                    <View style={profileStyles.settingsCard}>
+                        <Text style={profileStyles.sectionTitle}>Impostazioni</Text>
+                        
+                        <TouchableOpacity style={profileStyles.settingItem}>
+                            <Text style={profileStyles.settingIcon}>🌙</Text>
+                            <Text style={profileStyles.settingText}>Tema Scuro</Text>
+                            <Text style={profileStyles.settingValue}>Attivo</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={profileStyles.settingItem}>
+                            <Text style={profileStyles.settingIcon}>🔔</Text>
+                            <Text style={profileStyles.settingText}>Notifiche</Text>
+                            <Text style={profileStyles.settingValue}>Abilitate</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={profileStyles.settingItem}>
+                            <Text style={profileStyles.settingIcon}>📱</Text>
+                            <Text style={profileStyles.settingText}>Feedback Tattile</Text>
+                            <Text style={profileStyles.settingValue}>Attivo</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Logout Button */}
+                    <TouchableOpacity 
+                        style={profileStyles.logoutButton}
+                        onPress={handleLogout}
+                    >
+                        <Text style={profileStyles.logoutText}>Esci dall'Account</Text>
+                    </TouchableOpacity>
+
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+
+                {/* Bottom Nav Bar */}
+                <BottomNavBar 
+                    navigation={navigation} 
+                    user={user} 
+                    currentRoute="Profile"
+                />
+            </View>
+        </SafeAreaView>
+    );
+};
+
+// ====================================================================
+// Auth Screen (Login/Register)
+// ====================================================================
 const AuthScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -1056,6 +1255,80 @@ const ItemCard = ({ item, onClick }) => {
     );
 };
 
+// ====================================================================
+// Bottom Navigation Bar Component (The Athletic Style)
+// ====================================================================
+const BottomNavBar = ({ navigation, user, currentRoute }) => {
+    const navButtons = [
+        {
+            id: 'wardrobe',
+            icon: '👔',
+            label: 'Armadio',
+            route: 'Home',
+            haptic: 'Light'
+        },
+        {
+            id: 'camera',
+            icon: '📷',
+            label: 'Fotocamera',
+            route: 'AddItem',
+            haptic: 'Medium',
+            isPrimary: true
+        },
+        {
+            id: 'profile',
+            icon: '👤',
+            label: 'Profilo',
+            route: 'Profile',
+            haptic: 'Light'
+        }
+    ];
+
+    const handlePress = (button) => {
+        if (button.haptic === 'Medium') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } else {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        navigation.navigate(button.route, { user });
+    };
+
+    return (
+        <View style={bottomNavStyles.container}>
+            {navButtons.map((button) => {
+                const isActive = currentRoute === button.route;
+                const isPrimary = button.isPrimary;
+                
+                return (
+                    <TouchableOpacity
+                        key={button.id}
+                        style={[
+                            bottomNavStyles.button,
+                            isPrimary && bottomNavStyles.primaryButton
+                        ]}
+                        onPress={() => handlePress(button)}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={[
+                            bottomNavStyles.icon,
+                            isPrimary && bottomNavStyles.primaryIcon
+                        ]}>
+                            {button.icon}
+                        </Text>
+                        <Text style={[
+                            bottomNavStyles.label,
+                            isActive && bottomNavStyles.labelActive,
+                            isPrimary && bottomNavStyles.primaryLabel
+                        ]}>
+                            {button.label}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    );
+};
+
 // Componente Home (Schermata Principale App - Armadio)
 const HomeScreen = ({ navigation, route }) => {
     const { user } = route.params || { user: { uid: 'test-user' } };
@@ -1134,88 +1407,83 @@ const HomeScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
             </View>
             
-            {/* Componente Filtri */}
-            <View style={filterStyles.container}>
-                <TextInput
-                    style={filterStyles.searchInput}
-                    placeholder="Cerca per nome o marca..."
-                    placeholderTextColor="#9CA3AF"
-                    value={filter.text}
-                    onChangeText={text => setFilter(prev => ({...prev, text}))}
-                />
-                <View style={filterStyles.pickerRow}>
-                    <Picker
-                        selectedValue={filter.category}
-                        onValueChange={value => setFilter(prev => ({...prev, category: value}))}
-                        style={filterStyles.picker}
-                        dropdownIconColor="#111827"
-                    >
-                        <Picker.Item label="Tutte le categorie" value="" />
-                        {categories.map(cat => (
-                            <Picker.Item key={cat} label={cat} value={cat} />
-                        ))}
-                    </Picker>
-                    <Picker
-                        selectedValue={filter.color}
-                        onValueChange={value => setFilter(prev => ({...prev, color: value}))}
-                        style={filterStyles.picker}
-                        dropdownIconColor="#111827"
-                    >
-                        <Picker.Item label="Tutti i colori" value="" />
-                        {colors.map(color => (
-                            <Picker.Item key={color} label={color} value={color} />
-                        ))}
-                    </Picker>
-                </View>
-            </View>
-
-            <Text style={styles.subtitle}>
-                Totale capi: <Text style={{fontWeight: '600'}}>{items.length}</Text> - Filtrati: <Text style={{fontWeight: '600'}}>{filteredItems.length}</Text>
-            </Text>
-
-            {loadingItems ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4F46E5" />
-                    <Text style={{ marginTop: 10, color: '#333' }}>Caricamento del tuo armadio...</Text>
-                </View>
-            ) : items.length === 0 ? (
-                <View style={emptyStateStyles.container}>
-                    <Text style={emptyStateStyles.icon}>👚</Text>
-                    <Text style={emptyStateStyles.title}>Armadio Vuoto</Text>
-                    <Text style={emptyStateStyles.text}>Non hai ancora aggiunto nessun capo. Iniziamo subito!</Text>
-                </View>
-            ) : (
-                <View style={itemsGridStyles.container}>
-                    {filteredItems.map(item => (
-                        <ItemCard 
-                            key={item.id} 
-                            item={item} 
-                            onClick={(selectedItem) => navigation.navigate('Detail', { item: selectedItem })}
-                        />
-                    ))}
-                </View>
-            )}
-
-            <TouchableOpacity 
-                onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    navigation.navigate('AddItem', { user });
-                }} 
-                style={fabStyles}
-                title="Aggiungi nuovo capo"
+            <ScrollView 
+                style={styles.scrollContent}
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.scrollContentContainer}
             >
-                <Text style={{fontSize: 28, color: 'white'}}>➕</Text>
-            </TouchableOpacity>
-             <TouchableOpacity 
-                onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    navigation.navigate('OutfitBuilder', { user, items });
-                }} 
-                style={outfitButtonStyles}
-                title="Genera Outfit con AI"
-            >
-                <Text style={{fontSize: 24, color: 'white'}}>🤖</Text>
-            </TouchableOpacity>
+                {/* Componente Filtri */}
+                <View style={filterStyles.container}>
+                    <TextInput
+                        style={filterStyles.searchInput}
+                        placeholder="Cerca per nome o marca..."
+                        placeholderTextColor="#9CA3AF"
+                        value={filter.text}
+                        onChangeText={text => setFilter(prev => ({...prev, text}))}
+                    />
+                    <View style={filterStyles.pickerRow}>
+                        <Picker
+                            selectedValue={filter.category}
+                            onValueChange={value => setFilter(prev => ({...prev, category: value}))}
+                            style={filterStyles.picker}
+                            dropdownIconColor="#111827"
+                        >
+                            <Picker.Item label="Tutte le categorie" value="" />
+                            {categories.map(cat => (
+                                <Picker.Item key={cat} label={cat} value={cat} />
+                            ))}
+                        </Picker>
+                        <Picker
+                            selectedValue={filter.color}
+                            onValueChange={value => setFilter(prev => ({...prev, color: value}))}
+                            style={filterStyles.picker}
+                            dropdownIconColor="#111827"
+                        >
+                            <Picker.Item label="Tutti i colori" value="" />
+                            {colors.map(color => (
+                                <Picker.Item key={color} label={color} value={color} />
+                            ))}
+                        </Picker>
+                    </View>
+                </View>
+
+                <Text style={styles.subtitle}>
+                    Totale capi: <Text style={{fontWeight: '600'}}>{items.length}</Text> - Filtrati: <Text style={{fontWeight: '600'}}>{filteredItems.length}</Text>
+                </Text>
+
+                {loadingItems ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color="#4F46E5" />
+                        <Text style={{ marginTop: 10, color: '#333' }}>Caricamento del tuo armadio...</Text>
+                    </View>
+                ) : items.length === 0 ? (
+                    <View style={emptyStateStyles.container}>
+                        <Text style={emptyStateStyles.icon}>👚</Text>
+                        <Text style={emptyStateStyles.title}>Armadio Vuoto</Text>
+                        <Text style={emptyStateStyles.text}>Non hai ancora aggiunto nessun capo. Iniziamo subito!</Text>
+                    </View>
+                ) : (
+                    <View style={itemsGridStyles.container}>
+                        {filteredItems.map(item => (
+                            <ItemCard 
+                                key={item.id} 
+                                item={item} 
+                                onClick={(selectedItem) => navigation.navigate('Detail', { item: selectedItem })}
+                            />
+                        ))}
+                    </View>
+                )}
+                
+                {/* Padding bottom per Bottom Nav Bar */}
+                <View style={{ height: 100 }} />
+            </ScrollView>
+
+            {/* Bottom Navigation Bar */}
+            <BottomNavBar 
+                navigation={navigation} 
+                user={user} 
+                currentRoute="Home"
+            />
         </View>
     );
 };
@@ -1283,7 +1551,7 @@ const App = () => {
                     screenOptions={{
                         headerShown: false,
                         animation: 'default',
-                        contentStyle: { backgroundColor: '#F7F9FB' }
+                        contentStyle: { backgroundColor: COLORS.background }
                     }}
                 >
                     <Stack.Screen 
@@ -1293,6 +1561,11 @@ const App = () => {
                     <Stack.Screen 
                         name="Home" 
                         component={HomeScreen}
+                        initialParams={{ user }}
+                    />
+                    <Stack.Screen 
+                        name="Profile" 
+                        component={ProfileScreen}
                         initialParams={{ user }}
                     />
                     <Stack.Screen 
@@ -1360,11 +1633,11 @@ export default App;
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#F7F9FB',
+        backgroundColor: COLORS.background,
     },
     container: {
         flex: 1,
-        backgroundColor: '#F7F9FB',
+        backgroundColor: COLORS.background,
         padding: 0,
         margin: 0,
         maxWidth: '100%',
@@ -1376,15 +1649,21 @@ const styles = StyleSheet.create({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#F7F9FB',
+        backgroundColor: COLORS.background,
     },
     contentContainer: {
         padding: 20,
         flex: 1,
     },
+    scrollContent: {
+        flex: 1,
+    },
+    scrollContentContainer: {
+        paddingBottom: 20,
+    },
     subtitle: {
         fontSize: 14,
-        color: '#111827',
+        color: COLORS.textSecondary,
         marginBottom: 20,
     },
     loadingContainer: {
@@ -1402,20 +1681,21 @@ const headerStyles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingVertical: 10,
-        paddingHorizontal: 20, // Aggiunto padding orizzontale
+        paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.border,
         marginBottom: 10,
-        paddingTop: Platform.OS === 'android' ? 10 : 0, // Per StatusBar Android
+        paddingTop: Platform.OS === 'android' ? 10 : 0,
+        backgroundColor: COLORS.surface,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
         margin: 0,
     },
     signOutButton: {
-        backgroundColor: '#EF4444', 
+        backgroundColor: COLORS.error,
         color: '#FFFFFF',
         paddingVertical: 8,
         paddingHorizontal: 12,
@@ -1434,29 +1714,30 @@ const authStyles = {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: COLORS.background,
     },
     authTitle: {
         fontSize: 28,
         fontWeight: '700',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
         marginBottom: 30,
     },
     input: {
         width: '100%',
         padding: 15,
         marginBottom: 15,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surface,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: COLORS.border,
         fontSize: 16,
-        color: '#374151',
+        color: COLORS.textPrimary,
     },
     mainButton: {
         width: '100%',
         padding: 15,
         borderRadius: 10,
-        backgroundColor: '#4F46E5', // Indigo-600
+        backgroundColor: COLORS.primary,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -1465,8 +1746,13 @@ const authStyles = {
         marginTop: 10,
     },
     disabledButton: {
-        opacity: 0.7,
+        width: '100%',
+        padding: 15,
+        borderRadius: 10,
+        backgroundColor: COLORS.textMuted,
+        borderWidth: 0,
         cursor: 'not-allowed',
+        marginTop: 10,
     },
     switchTextContainer: {
         marginTop: 20,
@@ -1475,7 +1761,7 @@ const authStyles = {
         cursor: 'pointer',
     },
     switchText: {
-        color: '#4F46E5',
+        color: COLORS.primary,
         fontSize: 14,
         fontWeight: '500',
     },
@@ -1496,12 +1782,14 @@ const itemsGridStyles = StyleSheet.create({
 
 const itemCardStyles = {
     card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 10,
-        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
         overflow: 'hidden',
         transition: 'transform 0.2s',
         display: 'flex',
+        borderWidth: 1,
+        borderColor: COLORS.border,
         flexDirection: 'column',
         height: 220,
         cursor: 'pointer', // Rende la card cliccabile
@@ -1519,19 +1807,19 @@ const itemCardStyles = {
     },
     name: {
         fontSize: 14,
-        fontWeight: '700', // Più grassetto per il nome
-        color: '#1F2937', // Scuro per massima leggibilità
+        fontWeight: '700',
+        color: COLORS.textPrimary,
         marginBottom: 4,
     },
     category: {
         fontSize: 12,
-        color: '#4F46E5', // Colore primario per categoria/colore
+        color: COLORS.primary,
         marginBottom: 2,
     },
     brand: {
         fontSize: 10,
-        fontWeight: '500', // Più leggibile
-        color: '#4B5563', // Grigio scuro
+        fontWeight: '500',
+        color: COLORS.textSecondary,
     }
 };
 
@@ -1542,7 +1830,7 @@ const fabStyles = {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4F46E5',
+    backgroundColor: COLORS.primary,
     color: 'white',
     fontSize: 28,
     borderWidth: 0,
@@ -1557,11 +1845,11 @@ const fabStyles = {
 const outfitButtonStyles = {
     position: 'absolute',
     bottom: 20,
-    right: 86, // Posizionato a sinistra del FAB (20px + 56px + 10px spazio)
+    right: 86,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#059669', // Verde per l'AI
+    backgroundColor: COLORS.primaryDark,
     color: 'white',
     fontSize: 24,
     borderWidth: 0,
@@ -1573,6 +1861,209 @@ const outfitButtonStyles = {
     zIndex: 1000,
 };
 
+// ====================================================================
+// Bottom Navigation Bar Styles
+// ====================================================================
+const bottomNavStyles = StyleSheet.create({
+    container: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: 80,
+        backgroundColor: COLORS.navBackground,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingHorizontal: 20,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 10,
+    },
+    button: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 8,
+    },
+    primaryButton: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 16,
+        paddingHorizontal: 20,
+        marginHorizontal: 10,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    icon: {
+        fontSize: 24,
+        marginBottom: 4,
+    },
+    primaryIcon: {
+        fontSize: 28,
+    },
+    label: {
+        fontSize: 11,
+        fontWeight: '500',
+        color: COLORS.navInactive,
+    },
+    labelActive: {
+        color: COLORS.navActive,
+        fontWeight: '600',
+    },
+    primaryLabel: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 12,
+    },
+});
+
+// ====================================================================
+// Profile Screen Styles
+// ====================================================================
+const profileStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+    },
+    header: {
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        backgroundColor: COLORS.surface,
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+    },
+    scrollContent: {
+        flex: 1,
+        paddingHorizontal: 20,
+    },
+    userCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 24,
+        alignItems: 'center',
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    avatarContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    avatarIcon: {
+        fontSize: 40,
+    },
+    userName: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+        marginBottom: 4,
+    },
+    userEmail: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+    },
+    statsCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.textPrimary,
+        marginBottom: 16,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: COLORS.primary,
+        marginBottom: 4,
+    },
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    divider: {
+        width: 1,
+        height: 40,
+        backgroundColor: COLORS.border,
+    },
+    settingsCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    settingItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    settingIcon: {
+        fontSize: 20,
+        marginRight: 12,
+    },
+    settingText: {
+        flex: 1,
+        fontSize: 15,
+        color: COLORS.textPrimary,
+        fontWeight: '500',
+    },
+    settingValue: {
+        fontSize: 13,
+        color: COLORS.textMuted,
+    },
+    logoutButton: {
+        backgroundColor: COLORS.error,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        marginTop: 24,
+        marginBottom: 20,
+    },
+    logoutText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+});
+
 const emptyStateStyles = {
     container: {
         flex: 1,
@@ -1582,11 +2073,11 @@ const emptyStateStyles = {
         justifyContent: 'center',
         padding: 40,
         borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surface,
         marginTop: 30,
         textAlign: 'center',
         borderWidth: 1,
-        borderColor: '#D1D5DB',
+        borderColor: COLORS.border,
     },
     icon: {
         fontSize: 48,
@@ -1595,12 +2086,12 @@ const emptyStateStyles = {
     title: {
         fontSize: 20,
         fontWeight: '600',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
         marginBottom: 10,
     },
     text: {
         fontSize: 14,
-        color: '#6B7280',
+        color: COLORS.textSecondary,
     }
 };
 
@@ -1615,49 +2106,53 @@ const spinnerStyles = {
 
 const addItemStyles = {
     container: {
-        padding: 20,
         flex: 1,
+        backgroundColor: COLORS.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.border,
         paddingBottom: 10,
-        marginTop: Platform.OS === 'android' ? 10 : 0, // Margine per Android
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'android' ? 20 : 10,
+        backgroundColor: COLORS.surface,
         zIndex: 2,
     },
     backButton: {
         backgroundColor: 'transparent',
         borderWidth: 0,
         fontSize: 24,
-        color: '#4F46E5',
+        color: COLORS.primary,
         cursor: 'pointer',
         paddingRight: 15,
     },
     title: {
         fontSize: 20,
-        fontWeight: 'bold', // Aumentato per leggibilità
-        color: '#1F2937',
+        fontWeight: 'bold',
+        color: COLORS.textPrimary,
         margin: 0,
     },
     statusText: {
         textAlign: 'center',
         marginBottom: 15,
-        color: '#4F46E5',
+        marginHorizontal: 20,
+        color: COLORS.primary,
         fontSize: 14,
         minHeight: 20,
     },
     imageUploadArea: {
         marginBottom: 25,
+        marginHorizontal: 20,
         borderWidth: 2,
-        borderColor: '#D1D5DB',
+        borderColor: COLORS.border,
         borderRadius: 12,
         padding: 10,
         textAlign: 'center',
         cursor: 'pointer',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.surface,
     },
     imageLabel: {
         display: 'block',
@@ -1665,7 +2160,8 @@ const addItemStyles = {
     },
     placeholder: {
         padding: 30,
-        color: '#6B7280',
+        marginHorizontal: 20,
+        color: COLORS.textSecondary,
     },
     imagePreview: {
         width: '100%',
@@ -1677,6 +2173,7 @@ const addItemStyles = {
         flexDirection: 'row',
         gap: 12,
         marginBottom: 25,
+        marginHorizontal: 20,
     },
     actionButton: {
         flex: 1,
@@ -1687,12 +2184,12 @@ const addItemStyles = {
         borderWidth: 2,
     },
     cameraButton: {
-        backgroundColor: '#EEF2FF',
-        borderColor: '#4F46E5',
+        backgroundColor: COLORS.surfaceLight,
+        borderColor: COLORS.primary,
     },
     galleryButton: {
-        backgroundColor: '#F0FDF4',
-        borderColor: '#10B981',
+        backgroundColor: COLORS.surfaceLight,
+        borderColor: COLORS.primaryLight,
     },
     buttonIcon: {
         fontSize: 32,
@@ -1701,14 +2198,17 @@ const addItemStyles = {
     buttonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
     },
     metadataForm: {
         marginBottom: 30,
-        backgroundColor: '#FFFFFF',
+        marginHorizontal: 20,
+        backgroundColor: COLORS.surface,
         padding: 20,
         borderRadius: 12,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
     },
     fieldGroup: {
         marginBottom: 16,
@@ -1716,16 +2216,16 @@ const addItemStyles = {
     metadataTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: COLORS.border,
         paddingBottom: 10,
     },
     label: {
         display: 'block',
         fontSize: 12,
         fontWeight: '500',
-        color: '#6B7280',
+        color: COLORS.textSecondary,
         marginTop: 10,
     },
     input: {
@@ -1734,16 +2234,17 @@ const addItemStyles = {
         marginBottom: 5,
         borderRadius: 6,
         borderWidth: 1,
-        borderColor: '#D1D5DB',
+        borderColor: COLORS.border,
         fontSize: 16,
-        color: '#111827',
-        backgroundColor: '#FFFFFF',
+        color: COLORS.textPrimary,
+        backgroundColor: COLORS.surface,
     },
     saveButton: {
         width: '100%',
         padding: 15,
         borderRadius: 10,
-        backgroundColor: '#10B981', // Emerald-500
+        marginHorizontal: 20,
+        backgroundColor: COLORS.primary,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -1756,14 +2257,15 @@ const addItemStyles = {
 const duplicateBannerStyles = {
     container: {
         flexDirection: 'row',
-        backgroundColor: '#FFFBEB',
+        backgroundColor: COLORS.surfaceLight,
         borderWidth: 2,
-        borderColor: '#F59E0B',
+        borderColor: COLORS.warning,
         borderRadius: 12,
         padding: 16,
         marginBottom: 20,
+        marginHorizontal: 20,
         alignItems: 'flex-start',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
     },
     iconContainer: {
         marginRight: 12,
@@ -1778,12 +2280,12 @@ const duplicateBannerStyles = {
     title: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#92400E',
+        color: COLORS.warning,
         marginBottom: 4,
     },
     message: {
         fontSize: 14,
-        color: '#78350F',
+        color: COLORS.textSecondary,
         lineHeight: 20,
     },
     closeButton: {
@@ -1791,7 +2293,7 @@ const duplicateBannerStyles = {
     },
     closeIcon: {
         fontSize: 18,
-        color: '#92400E',
+        color: COLORS.warning,
         fontWeight: '700',
     },
 };
@@ -1799,27 +2301,28 @@ const duplicateBannerStyles = {
 const recommendationStyles = {
     container: {
         padding: 15,
-        backgroundColor: '#ECFDF5', 
+        backgroundColor: COLORS.surfaceLight,
         borderWidth: 1,
-        borderColor: '#10B981',
+        borderColor: COLORS.primary,
         borderRadius: 8,
         marginBottom: 30,
         marginTop: 20,
+        marginHorizontal: 20,
     },
     title: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#065F46',
+        color: COLORS.primary,
         marginBottom: 10,
     },
     link: {
         display: 'block',
-        color: '#10B981',
+        color: COLORS.primaryLight,
         fontWeight: '500',
         textDecoration: 'none',
         padding: '5px 0',
         borderBottomWidth: 1,
-        borderBottomColor: '#A7F3D0',
+        borderBottomColor: COLORS.border,
         fontSize: 14
     }
 };
@@ -1827,7 +2330,7 @@ const recommendationStyles = {
 const detailStyles = {
     container: {
         padding: 20,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.background,
         flex: 1,
     },
     header: {
@@ -1835,22 +2338,22 @@ const detailStyles = {
         alignItems: 'center',
         marginBottom: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.border,
         paddingBottom: 10,
-        marginTop: Platform.OS === 'android' ? 10 : 0, // Margine per Android
+        marginTop: Platform.OS === 'android' ? 10 : 0,
     },
     backButton: {
         backgroundColor: 'transparent',
         borderWidth: 0,
         fontSize: 24,
-        color: '#4F46E5',
+        color: COLORS.primary,
         cursor: 'pointer',
         paddingRight: 15,
     },
     title: {
         fontSize: 20,
-        fontWeight: 'bold', // Aumentato per leggibilità
-        color: '#1F2937',
+        fontWeight: 'bold',
+        color: COLORS.textPrimary,
         margin: 0,
     },
     image: {
@@ -1860,13 +2363,15 @@ const detailStyles = {
         marginBottom: 15,
         objectFit: 'contain',
         maxHeight: 250,
-        backgroundColor: '#F3F4F6'
+        backgroundColor: COLORS.surface
     },
     form: {
-        backgroundColor: '#F9FAFB',
+        backgroundColor: COLORS.surface,
         padding: 15,
         borderRadius: 8,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
     },
     formGroup: {
         marginBottom: 10,
@@ -1875,7 +2380,7 @@ const detailStyles = {
         display: 'block',
         fontSize: 14,
         fontWeight: '500',
-        color: '#374151',
+        color: COLORS.textSecondary,
         marginBottom: 5,
     },
     input: {
@@ -1883,10 +2388,10 @@ const detailStyles = {
         padding: 10,
         borderRadius: 6,
         borderWidth: 1,
-        borderColor: '#D1D5DB',
+        borderColor: COLORS.border,
         fontSize: 16,
-        color: '#111827',
-        backgroundColor: '#FFFFFF',
+        color: COLORS.textPrimary,
+        backgroundColor: COLORS.surface,
     },
     buttonGroup: {
         flexDirection: 'row',
@@ -1897,7 +2402,7 @@ const detailStyles = {
         flex: 1,
         padding: 10,
         borderRadius: 6,
-        backgroundColor: '#10B981', // Emerald-500
+        backgroundColor: COLORS.primary,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -1909,8 +2414,8 @@ const detailStyles = {
         flex: 1,
         padding: 10,
         borderRadius: 6,
-        backgroundColor: '#D1D5DB', 
-        color: '#4B5563',
+        backgroundColor: COLORS.surfaceLight,
+        color: COLORS.textSecondary,
         fontWeight: '600',
         fontSize: 16,
         borderWidth: 0,
@@ -1922,22 +2427,22 @@ const detailStyles = {
     itemName: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#1F2937',
+        color: COLORS.textPrimary,
         margin: 0,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.border,
         paddingBottom: 5
     },
     metadata: {
         fontSize: 16,
-        color: '#374151',
+        color: COLORS.textSecondary,
         margin: 5,
     },
     editButton: {
         flex: 1,
         padding: 10,
         borderRadius: 6,
-        backgroundColor: '#4F46E5', // Indigo-600
+        backgroundColor: COLORS.primary,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -1949,7 +2454,7 @@ const detailStyles = {
         flex: 1,
         padding: 10,
         borderRadius: 6,
-        backgroundColor: '#EF4444', // Rosso-600
+        backgroundColor: COLORS.error,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -1967,12 +2472,12 @@ const filterStyles = {
         padding: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-        color: '#111827',
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.surface,
+        color: COLORS.textPrimary,
         fontSize: 15,
         marginBottom: 10,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
     },
     pickerRow: {
         flexDirection: 'row',
@@ -1985,11 +2490,11 @@ const filterStyles = {
         padding: 10,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-        color: '#111827',
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.surface,
+        color: COLORS.textPrimary,
         fontSize: 14,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
     }
 };
 
@@ -1997,33 +2502,35 @@ const outfitStyles = {
     container: {
         padding: 20,
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.background,
     },
     inputArea: {
         marginBottom: 20,
         padding: 15,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: COLORS.surface,
         borderRadius: 12,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
     },
     textarea: {
         width: '100%',
         padding: 10,
         borderRadius: 6,
         borderWidth: 1,
-        borderColor: '#D1D5DB',
+        borderColor: COLORS.border,
         marginBottom: 10,
         fontSize: 16,
         resize: 'vertical',
-        color: '#111827',
-        backgroundColor: '#FFFFFF',
+        color: COLORS.textPrimary,
+        backgroundColor: COLORS.surface,
         textAlignVertical: 'top',
     },
     generateButton: {
         width: '100%',
         padding: 12,
         borderRadius: 8,
-        backgroundColor: '#059669', // Verde scuro per l'azione AI
+        backgroundColor: COLORS.primary,
         color: '#FFFFFF',
         fontWeight: '600',
         fontSize: 16,
@@ -2033,33 +2540,33 @@ const outfitStyles = {
     resultBox: {
         padding: 20,
         borderRadius: 12,
-        backgroundColor: '#E0F2F1', // Verde chiaro
+        backgroundColor: COLORS.surfaceLight,
         borderWidth: 1,
-        borderColor: '#26A69A',
+        borderColor: COLORS.primary,
         marginBottom: 30,
-        maxHeight: 400, // Limita altezza per abilitare scroll
     },
     resultTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#004D40',
+        color: COLORS.primary,
         marginBottom: 10,
     },
     resultText: {
-        color: '#004D40',
+        color: COLORS.textPrimary,
         fontSize: 16,
-        // Usa una lineHeight in dp coerente con il fontSize per evitare sovrapposizioni
         lineHeight: 22,
     },
     inventoryPreview: {
         padding: 15,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: COLORS.surface,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     inventoryTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#4B5563',
+        color: COLORS.textSecondary,
         marginBottom: 10,
     },
     itemList: {
