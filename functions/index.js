@@ -434,11 +434,27 @@ functions.http('getShoppingRecommendations', async (req, res) => {
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp',
-      tools: [{ googleSearch: {} }]
+      model: 'gemini-2.0-flash-exp'
     });
 
-    const userQuery = `Trova 3 link di acquisto online per: ${itemDescription}. Rispondi SOLO con JSON array: [{"title":"...", "url":"https://..."}]`;
+    // Nuovo approccio: genera query di ricerca specifiche invece di cercare link diretti
+    const userQuery = `Sei un esperto di moda e shopping online. 
+    
+Per l'articolo: "${itemDescription}"
+
+Genera 3 suggerimenti di ricerca per trovare articoli simili online. Ogni suggerimento deve essere:
+- Una query di ricerca ottimizzata per Google Shopping
+- Include brand popolari o alternative
+- Specifica caratteristiche distintive
+
+Rispondi SOLO con un JSON array in questo formato:
+[
+  {"title": "Descrizione breve articolo", "searchQuery": "query ottimizzata per shopping"},
+  {"title": "Descrizione alternativa", "searchQuery": "altra query"},
+  {"title": "Terza opzione", "searchQuery": "terza query"}
+]
+
+IMPORTANTE: Rispondi SOLO con il JSON, nessun altro testo.`;
 
     const geminiStartTime = Date.now();
     const result = await model.generateContent(userQuery);
@@ -449,7 +465,8 @@ functions.http('getShoppingRecommendations', async (req, res) => {
 
     console.log('🤖 Shopping response:', JSON.stringify({
       duration: geminiDuration,
-      length: text.length
+      length: text.length,
+      preview: text.substring(0, 200)
     }));
 
     let recommendations = [];
@@ -458,14 +475,18 @@ functions.http('getShoppingRecommendations', async (req, res) => {
       const parsed = JSON.parse(cleanText);
       
       if (Array.isArray(parsed)) {
-        recommendations = parsed.filter(item => 
-          item && item.title && item.url && item.url.startsWith('http')
-        );
-      } else if (parsed && parsed.title && parsed.url) {
-        recommendations = [parsed];
+        // Converti le query in URL Google Shopping
+        recommendations = parsed
+          .filter(item => item && item.title && item.searchQuery)
+          .map(item => ({
+            title: item.title,
+            url: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.searchQuery)}`
+          }))
+          .slice(0, 3);
       }
     } catch (parseError) {
       console.warn('⚠️ Parse warning:', parseError.message);
+      console.warn('Raw text:', text);
       recommendations = [];
     }
 

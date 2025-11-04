@@ -223,23 +223,31 @@ const getShoppingRecommendations = async (itemDescription) => {
         try {
             console.log(`🔄 Tentativo ${attempt + 1}/3 - Shopping...`);
             
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
             const response = await fetch(cloudFunctionUrl, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload),
-                timeout: 30000
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
+
+            console.log('📥 Response status:', response.status);
+            
             if (response.ok) {
                 const result = await response.json();
-                console.log('✅ Shopping response:', result);
+                console.log('✅ Shopping response completo:', JSON.stringify(result));
 
-                if (result.success && result.recommendations) {
+                if (result.success && result.recommendations && result.recommendations.length > 0) {
+                    console.log(`✅ ${result.recommendations.length} suggerimenti trovati`);
                     return result.recommendations;
                 } else {
-                    console.warn('⚠️ No recommendations found');
+                    console.warn('⚠️ No recommendations in response:', result);
                     return [];
                 }
             } else if (response.status === 429 && attempt < 2) {
@@ -251,6 +259,7 @@ const getShoppingRecommendations = async (itemDescription) => {
 
             let errorBody = '';
             try { errorBody = await response.text(); } catch {}
+            console.error(`❌ Error response (${response.status}):`, errorBody);
             console.error('❌ Shopping HTTP error', response.status, errorBody);
             
             // Non fallire, restituisci array vuoto
@@ -336,10 +345,35 @@ const getOutfitSuggestion = async (availableItems, userRequest) => {
 // ====================================================================
 
 const OutfitBuilderScreen = ({ navigation, route }) => {
-    const { user, items } = route.params || { user: { uid: 'test-user' }, items: [] };
+    const { user } = route.params || { user: { uid: 'test-user' } };
     const [request, setRequest] = useState('');
     const [suggestion, setSuggestion] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState([]);
+    const [loadingItems, setLoadingItems] = useState(true);
+
+    // Fetch items from Firestore
+    useEffect(() => {
+        if (!user || !user.uid) return;
+
+        const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
+        
+        const unsubscribe = firestore()
+            .collection(itemsCollectionPath)
+            .onSnapshot((snapshot) => {
+                const fetchedItems = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setItems(fetchedItems);
+                setLoadingItems(false);
+            }, (error) => {
+                console.error('Errore nel recupero degli item:', error);
+                setLoadingItems(false);
+            });
+
+        return () => unsubscribe();
+    }, [user]);
 
     const handleGenerate = async () => {
         if (!request.trim()) {
@@ -414,18 +448,25 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 </View>
             )}
             
-            <View style={outfitStyles.inventoryPreview}>
-                <Text style={outfitStyles.inventoryTitle}>Capi nel tuo armadio ({items.length})</Text>
-                <View style={outfitStyles.itemList}>
-                    {items.slice(0, 5).map(item => (
-                        <Text key={item.id} style={outfitStyles.itemTag}>
-                            {item.name} ({item.mainColor})
-                        </Text>
-                    ))}
-                    {items.length > 5 && <Text style={outfitStyles.itemTag}>...e altri {items.length - 5}</Text>}
+            {loadingItems ? (
+                <View style={outfitStyles.inventoryPreview}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={outfitStyles.note}>Caricamento capi...</Text>
                 </View>
-                <Text style={outfitStyles.note}>L'AI utilizzerà questi capi per il suggerimento.</Text>
-            </View>
+            ) : (
+                <View style={outfitStyles.inventoryPreview}>
+                    <Text style={outfitStyles.inventoryTitle}>Capi nel tuo armadio ({items.length})</Text>
+                    <View style={outfitStyles.itemList}>
+                        {items.slice(0, 5).map(item => (
+                            <Text key={item.id} style={outfitStyles.itemTag}>
+                                {item.name} ({item.mainColor})
+                            </Text>
+                        ))}
+                        {items.length > 5 && <Text style={outfitStyles.itemTag}>...e altri {items.length - 5}</Text>}
+                    </View>
+                    <Text style={outfitStyles.note}>L'AI utilizzerà questi capi per il suggerimento.</Text>
+                </View>
+            )}
             </ScrollView>
         </View>
     );
@@ -573,8 +614,19 @@ const AddItemScreen = ({ navigation, route }) => {
             
             // Generazione Suggerimenti E-commerce
             setStatus('Generazione suggerimenti E-commerce...');
-            const recommendations = await getShoppingRecommendations(aiResult.name + ' ' + aiResult.category);
-            setRecommendations(recommendations);
+            try {
+                const recommendations = await getShoppingRecommendations(aiResult.name + ' ' + aiResult.category);
+                console.log('📦 Suggerimenti ricevuti:', recommendations);
+                if (recommendations && recommendations.length > 0) {
+                    setRecommendations(recommendations);
+                } else {
+                    console.warn('⚠️ Nessun suggerimento ricevuto dalla Cloud Function');
+                    setRecommendations([]);
+                }
+            } catch (recError) {
+                console.error('❌ Errore recupero suggerimenti:', recError);
+                setRecommendations([]);
+            }
 
             setStatus('Analisi completata. Verifica i metadati.');
             
@@ -683,7 +735,7 @@ const AddItemScreen = ({ navigation, route }) => {
                 <ScrollView 
                     style={{ flex: 1 }}
                     showsVerticalScrollIndicator={true}
-                    contentContainerStyle={{ paddingBottom: 30 }}
+                    contentContainerStyle={{ paddingBottom: 120 }}
                 >
                     <Text style={addItemStyles.statusText}>
                          {loading && <ActivityIndicator size="small" color="#4F46E5" style={{marginRight: 8}} />}
@@ -825,6 +877,24 @@ const AddItemScreen = ({ navigation, route }) => {
                             </Text>
                         </TouchableOpacity>
                     ))}
+                </View>
+            )}
+
+            {/* Fallback: Link ricerca Google Shopping se nessun suggerimento */}
+            {!loading && imagePreview && metadata.name && recommendations.length === 0 && (
+                <View style={recommendationStyles.fallbackContainer}>
+                    <Text style={recommendationStyles.fallbackTitle}>🔍 Cerca articoli simili</Text>
+                    <TouchableOpacity 
+                        onPress={() => {
+                            const searchQuery = encodeURIComponent(`${metadata.name} ${metadata.category} ${metadata.brand}`.trim());
+                            Linking.openURL(`https://www.google.com/search?tbm=shop&q=${searchQuery}`);
+                        }}
+                        style={recommendationStyles.fallbackButton}
+                    >
+                        <Text style={recommendationStyles.fallbackButtonText}>
+                            Cerca su Google Shopping →
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -1256,99 +1326,121 @@ const ItemCard = ({ item, onClick }) => {
 };
 
 // ====================================================================
-// Custom Tab Bar Component (The Athletic Style con Lucide Icons)
+// Custom Tab Bar Component (The Athletic Style - Curved con Camera Prominente)
 // ====================================================================
 const CustomTabBar = ({ state, descriptors, navigation }) => {
     return (
-        <View style={customTabBarStyles.container}>
-            {state.routes.map((route, index) => {
-                const { options } = descriptors[route.key];
-                const label = options.tabBarLabel !== undefined
-                    ? options.tabBarLabel
-                    : options.title !== undefined
-                    ? options.title
-                    : route.name;
+        <View style={customTabBarStyles.wrapper}>
+            <View style={customTabBarStyles.container}>
+                {/* Left Side Tabs */}
+                <View style={customTabBarStyles.sideContainer}>
+                    {state.routes.slice(0, 2).map((route, index) => {
+                        const { options } = descriptors[route.key];
+                        const label = options.tabBarLabel;
+                        const isFocused = state.index === index;
 
-                const isFocused = state.index === index;
-                const isPrimary = route.name === 'AddItem';
+                        const onPress = () => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                            });
 
-                const onPress = () => {
-                    // Haptic feedback
-                    if (isPrimary) {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    } else {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }
+                            if (!isFocused && !event.defaultPrevented) {
+                                navigation.navigate(route.name);
+                            }
+                        };
 
-                    const event = navigation.emit({
-                        type: 'tabPress',
-                        target: route.key,
-                        canPreventDefault: true,
-                    });
+                        const IconComponent = route.name === 'HomeTab' ? Home : Zap;
+                        const iconColor = isFocused ? COLORS.navActive : COLORS.navInactive;
 
-                    if (!isFocused && !event.defaultPrevented) {
-                        navigation.navigate(route.name);
-                    }
-                };
+                        return (
+                            <TouchableOpacity
+                                key={route.key}
+                                onPress={onPress}
+                                style={customTabBarStyles.tabButton}
+                                activeOpacity={0.7}
+                            >
+                                <IconComponent 
+                                    size={24} 
+                                    color={iconColor}
+                                    strokeWidth={isFocused ? 2.5 : 2}
+                                />
+                                <Text style={[
+                                    customTabBarStyles.label,
+                                    isFocused && customTabBarStyles.labelActive
+                                ]}>
+                                    {label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
 
-                // Render icone Lucide
-                let IconComponent;
-                let iconSize = 24;
-                
-                switch (route.name) {
-                    case 'HomeTab':
-                        IconComponent = Home;
-                        break;
-                    case 'OutfitAITab':
-                        IconComponent = Zap;
-                        break;
-                    case 'AddItem':
-                        IconComponent = Camera;
-                        iconSize = 28; // Più grande per il pulsante primario
-                        break;
-                    case 'ProfileTab':
-                        IconComponent = User;
-                        break;
-                    default:
-                        IconComponent = Home;
-                }
+                {/* Center Space for Floating Button */}
+                <View style={customTabBarStyles.centerSpacer} />
 
-                const iconColor = isPrimary 
-                    ? '#FFFFFF' 
-                    : isFocused 
-                        ? COLORS.navActive 
-                        : COLORS.navInactive;
+                {/* Right Side Tabs */}
+                <View style={customTabBarStyles.sideContainer}>
+                    {state.routes.slice(3).map((route, index) => {
+                        const { options } = descriptors[route.key];
+                        const label = options.tabBarLabel;
+                        const isFocused = state.index === index + 3;
 
-                return (
-                    <TouchableOpacity
-                        key={route.key}
-                        accessibilityRole="button"
-                        accessibilityState={isFocused ? { selected: true } : {}}
-                        accessibilityLabel={options.tabBarAccessibilityLabel}
-                        testID={options.tabBarTestID}
-                        onPress={onPress}
-                        style={[
-                            customTabBarStyles.button,
-                            isPrimary && customTabBarStyles.primaryButton
-                        ]}
-                        activeOpacity={0.7}
-                    >
-                        <IconComponent 
-                            size={iconSize} 
-                            color={iconColor}
-                            strokeWidth={isFocused ? 2.5 : 2}
-                        />
-                        {!isPrimary && (
-                            <Text style={[
-                                customTabBarStyles.label,
-                                isFocused && customTabBarStyles.labelActive
-                            ]}>
-                                {label}
-                            </Text>
-                        )}
-                    </TouchableOpacity>
-                );
-            })}
+                        const onPress = () => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                            });
+
+                            if (!isFocused && !event.defaultPrevented) {
+                                navigation.navigate(route.name);
+                            }
+                        };
+
+                        const IconComponent = User;
+                        const iconColor = isFocused ? COLORS.navActive : COLORS.navInactive;
+
+                        return (
+                            <TouchableOpacity
+                                key={route.key}
+                                onPress={onPress}
+                                style={customTabBarStyles.tabButton}
+                                activeOpacity={0.7}
+                            >
+                                <IconComponent 
+                                    size={24} 
+                                    color={iconColor}
+                                    strokeWidth={isFocused ? 2.5 : 2}
+                                />
+                                <Text style={[
+                                    customTabBarStyles.label,
+                                    isFocused && customTabBarStyles.labelActive
+                                ]}>
+                                    {label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </View>
+
+            {/* Floating Camera Button (Prominente) */}
+            <TouchableOpacity
+                onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    navigation.navigate('AddItem');
+                }}
+                style={customTabBarStyles.floatingButton}
+                activeOpacity={0.8}
+            >
+                <View style={customTabBarStyles.floatingButtonInner}>
+                    <Camera size={32} color="#FFFFFF" strokeWidth={2.5} />
+                </View>
+            </TouchableOpacity>
         </View>
     );
 };
@@ -1427,7 +1519,7 @@ const HomeScreen = ({ navigation, route }) => {
                     style={headerStyles.signOutButton}
                     title="Disconnetti"
                 >
-                    <Text style={{color: 'white', fontWeight: '600'}}>Esci</Text>
+                    <Text style={headerStyles.signOutButtonText}>Esci</Text>
                 </TouchableOpacity>
             </View>
             
@@ -1775,36 +1867,43 @@ const styles = StyleSheet.create({
     }
 });
 
-const headerStyles = {
+const headerStyles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 10,
+        paddingVertical: 16,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        marginBottom: 10,
-        paddingTop: Platform.OS === 'android' ? 10 : 0,
         backgroundColor: COLORS.surface,
+        ...Platform.select({
+            android: {
+                paddingTop: 16,
+            },
+            ios: {
+                paddingTop: 0,
+            }
+        }),
     },
     title: {
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '700',
         color: COLORS.textPrimary,
-        margin: 0,
+        lineHeight: 28,
     },
     signOutButton: {
         backgroundColor: COLORS.error,
-        color: '#FFFFFF',
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
+    },
+    signOutButtonText: {
+        color: '#FFFFFF',
         fontWeight: '600',
-        borderWidth: 0,
-        cursor: 'pointer',
+        fontSize: 14,
     }
-}
+});
 
 const authStyles = {
     authContainer: {
@@ -1821,6 +1920,7 @@ const authStyles = {
         fontWeight: '700',
         color: COLORS.textPrimary,
         marginBottom: 30,
+        lineHeight: 38,
     },
     input: {
         width: '100%',
@@ -1831,6 +1931,7 @@ const authStyles = {
         borderWidth: 1,
         borderColor: COLORS.border,
         fontSize: 16,
+        lineHeight: 22,
         color: COLORS.textPrimary,
     },
     mainButton: {
@@ -1880,48 +1981,54 @@ const itemsGridStyles = StyleSheet.create({
   }
 });
 
-const itemCardStyles = {
+const itemCardStyles = StyleSheet.create({
     card: {
         backgroundColor: COLORS.surface,
         borderRadius: 12,
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
         overflow: 'hidden',
-        transition: 'transform 0.2s',
-        display: 'flex',
         borderWidth: 1,
         borderColor: COLORS.border,
-        flexDirection: 'column',
         height: 220,
-        cursor: 'pointer', // Rende la card cliccabile
+        marginBottom: 16,
+        // Shadow per iOS
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        // Elevation per Android
+        elevation: 8,
     },
     image: {
         width: '100%',
-        height: '60%',
-        objectFit: 'cover',
-        borderTopLeftRadius: 10,
-        borderTopRightRadius: 10,
+        height: 140,
+        resizeMode: 'cover',
     },
     info: {
-        padding: 10,
-        height: '40%',
+        padding: 12,
+        flex: 1,
+        justifyContent: 'space-between',
     },
     name: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '700',
         color: COLORS.textPrimary,
-        marginBottom: 4,
+        marginBottom: 6,
+        lineHeight: 20,
     },
     category: {
-        fontSize: 12,
+        fontSize: 13,
+        fontWeight: '600',
         color: COLORS.primary,
-        marginBottom: 2,
+        marginBottom: 4,
+        lineHeight: 18,
     },
     brand: {
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '500',
         color: COLORS.textSecondary,
+        lineHeight: 16,
     }
-};
+});
 
 const fabStyles = {
     position: 'absolute',
@@ -1965,46 +2072,48 @@ const outfitButtonStyles = {
 // Bottom Navigation Bar Styles
 // ====================================================================
 // ====================================================================
-// Custom Tab Bar Styles (The Athletic Style con Lucide Icons)
+// Custom Tab Bar Styles (The Athletic Style - Curved Design)
 // ====================================================================
 const customTabBarStyles = StyleSheet.create({
-    container: {
+    wrapper: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        height: 80,
+        height: 90,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    },
+    container: {
+        flex: 1,
         backgroundColor: COLORS.navBackground,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-around',
-        paddingHorizontal: 16,
-        paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        elevation: 12,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 16,
+        elevation: 15,
     },
-    button: {
+    sideContainer: {
         flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+    },
+    centerSpacer: {
+        width: 80,
+    },
+    tabButton: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 10,
-    },
-    primaryButton: {
-        backgroundColor: COLORS.primary,
-        borderRadius: 20,
-        width: 64,
-        height: 64,
-        marginHorizontal: 12,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
-        elevation: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
     },
     label: {
         fontSize: 11,
@@ -2015,6 +2124,32 @@ const customTabBarStyles = StyleSheet.create({
     labelActive: {
         color: COLORS.navActive,
         fontWeight: '600',
+    },
+    floatingButton: {
+        position: 'absolute',
+        bottom: Platform.OS === 'ios' ? 40 : 30,
+        left: '50%',
+        marginLeft: -36,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 16,
+        elevation: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    floatingButtonInner: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 36,
+        borderWidth: 4,
+        borderColor: COLORS.background,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 
@@ -2034,9 +2169,10 @@ const profileStyles = StyleSheet.create({
         backgroundColor: COLORS.surface,
     },
     headerTitle: {
-        fontSize: 28,
+        fontSize: 20,
         fontWeight: '700',
         color: COLORS.textPrimary,
+        lineHeight: 28,
     },
     scrollContent: {
         flex: 1,
@@ -2391,63 +2527,89 @@ const duplicateBannerStyles = {
     },
 };
 
-const recommendationStyles = {
+const recommendationStyles = StyleSheet.create({
     container: {
         padding: 15,
         backgroundColor: COLORS.surfaceLight,
         borderWidth: 1,
         borderColor: COLORS.primary,
         borderRadius: 8,
-        marginBottom: 30,
+        marginBottom: 20,
         marginTop: 20,
-        marginHorizontal: 20,
     },
     title: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '600',
         color: COLORS.primary,
-        marginBottom: 10,
+        marginBottom: 12,
+        lineHeight: 24,
     },
     link: {
-        display: 'block',
-        color: COLORS.primaryLight,
-        fontWeight: '500',
-        textDecoration: 'none',
-        padding: '5px 0',
+        paddingVertical: 8,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        fontSize: 14
+    },
+    fallbackContainer: {
+        padding: 16,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 8,
+        marginBottom: 20,
+        marginTop: 10,
+    },
+    fallbackTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        marginBottom: 12,
+        lineHeight: 20,
+    },
+    fallbackButton: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    fallbackButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '600',
     }
-};
+});
 
-const detailStyles = {
+const detailStyles = StyleSheet.create({
     container: {
-        padding: 20,
-        backgroundColor: COLORS.background,
         flex: 1,
+        backgroundColor: COLORS.background,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
         borderBottomWidth: 1,
         borderBottomColor: COLORS.border,
-        paddingBottom: 10,
-        marginTop: Platform.OS === 'android' ? 10 : 0,
+        backgroundColor: COLORS.surface,
+        ...Platform.select({
+            android: {
+                paddingTop: 16,
+            },
+            ios: {
+                paddingTop: 0,
+            }
+        }),
     },
     backButton: {
-        backgroundColor: 'transparent',
-        borderWidth: 0,
-        fontSize: 24,
-        color: COLORS.primary,
-        cursor: 'pointer',
-        paddingRight: 15,
+        paddingRight: 12,
+        paddingVertical: 4,
     },
     title: {
         fontSize: 20,
-        fontWeight: 'bold',
+        fontWeight: '700',
         color: COLORS.textPrimary,
-        margin: 0,
+        lineHeight: 28,
     },
     image: {
         width: '100%',
@@ -2554,7 +2716,7 @@ const detailStyles = {
         borderWidth: 0,
         cursor: 'pointer',
     },
-};
+});
 
 const filterStyles = {
     container: {
@@ -2639,15 +2801,17 @@ const outfitStyles = {
         marginBottom: 30,
     },
     resultTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
         color: COLORS.primary,
-        marginBottom: 10,
+        marginBottom: 12,
+        lineHeight: 26,
     },
     resultText: {
         color: COLORS.textPrimary,
-        fontSize: 16,
-        lineHeight: 22,
+        fontSize: 15,
+        lineHeight: 24,
+        fontWeight: '400',
     },
     inventoryPreview: {
         padding: 15,
@@ -2657,10 +2821,11 @@ const outfitStyles = {
         borderColor: COLORS.border,
     },
     inventoryTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         color: COLORS.textSecondary,
-        marginBottom: 10,
+        marginBottom: 12,
+        lineHeight: 22,
     },
     itemList: {
         flexDirection: 'row',
