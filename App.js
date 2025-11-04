@@ -15,7 +15,8 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
-  StatusBar
+  StatusBar,
+  FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -28,7 +29,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 
 // Lucide Icons (The Athletic Style)
-import { Home, Zap, Camera, User, ChevronLeft, Image as ImageIcon } from 'lucide-react-native';
+import { Home, Zap, Camera, User, ChevronLeft, Image as ImageIcon, Search, BarChart3 } from 'lucide-react-native';
 
 // React Native Firebase (moduli nativi)
 import storage from '@react-native-firebase/storage';
@@ -602,6 +603,19 @@ const AddItemScreen = ({ navigation, route }) => {
                 size: aiResult.size || ''
             }));
             
+            // Controllo Dati Mancanti dopo AI
+            const missingFields = [];
+            if (!aiResult.size || aiResult.size === '') missingFields.push('Taglia');
+            if (!aiResult.brand || aiResult.brand === '') missingFields.push('Marca');
+            
+            if (missingFields.length > 0) {
+                Alert.alert(
+                    'Dati incompleti rilevati',
+                    `L'AI non ha rilevato: ${missingFields.join(', ')}.\n\nInseriscili manualmente prima di salvare il capo.`,
+                    [{ text: 'OK', style: 'default' }]
+                );
+            }
+            
             // Verifica Duplicati
             setStatus('Verifica duplicati nell\'armadio...');
             const duplicate = await checkDuplicate(aiResult);
@@ -1054,6 +1068,143 @@ const ProfileScreen = ({ navigation, route }) => {
 };
 
 // ====================================================================
+// Statistics Screen (Nuovo Tab - Statistiche Dettagliate)
+// ====================================================================
+const StatsScreen = ({ route }) => {
+    const { user } = route.params || { user: { uid: 'test-user' } };
+    const [stats, setStats] = useState({
+        totalItems: 0,
+        byCategory: {},
+        byColor: {},
+        byBrand: {},
+        bySize: {}
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user || !user.uid) return;
+
+        const itemsCollectionPath = `artifacts/${__app_id}/users/${user.uid}/items`;
+        
+        const unsubscribe = firestore()
+            .collection(itemsCollectionPath)
+            .onSnapshot((snapshot) => {
+                const items = snapshot.docs.map(doc => doc.data());
+                
+                // Calcola statistiche
+                const byCategory = {};
+                const byColor = {};
+                const byBrand = {};
+                const bySize = {};
+                
+                items.forEach(item => {
+                    // Categoria
+                    byCategory[item.category] = (byCategory[item.category] || 0) + 1;
+                    // Colore
+                    byColor[item.mainColor] = (byColor[item.mainColor] || 0) + 1;
+                    // Brand
+                    if (item.brand) {
+                        byBrand[item.brand] = (byBrand[item.brand] || 0) + 1;
+                    }
+                    // Taglia
+                    if (item.size) {
+                        bySize[item.size] = (bySize[item.size] || 0) + 1;
+                    }
+                });
+                
+                setStats({
+                    totalItems: items.length,
+                    byCategory,
+                    byColor,
+                    byBrand,
+                    bySize
+                });
+                setLoading(false);
+            }, (error) => {
+                console.error('Errore caricamento statistiche:', error);
+                setLoading(false);
+            });
+
+        return () => unsubscribe();
+    }, [user]);
+
+    const renderStatSection = (title, data) => {
+        const sortedEntries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+        const topFive = sortedEntries.slice(0, 5);
+        
+        if (topFive.length === 0) {
+            return null;
+        }
+        
+        return (
+            <View style={statsStyles.section}>
+                <Text style={statsStyles.sectionTitle}>{title}</Text>
+                {topFive.map(([key, value], index) => (
+                    <View key={key} style={statsStyles.statRow}>
+                        <Text style={statsStyles.statLabel}>
+                            {index + 1}. {key}
+                        </Text>
+                        <Text style={statsStyles.statValue}>{value}</Text>
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <View style={statsStyles.container}>
+                    <View style={statsStyles.header}>
+                        <BarChart3 size={24} color={COLORS.primary} strokeWidth={2.5} />
+                        <Text style={statsStyles.headerTitle}>Statistiche</Text>
+                    </View>
+                    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                        <ActivityIndicator size="large" color={COLORS.primary} />
+                    </View>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <View style={statsStyles.container}>
+                {/* Header */}
+                <View style={statsStyles.header}>
+                    <BarChart3 size={24} color={COLORS.primary} strokeWidth={2.5} />
+                    <Text style={statsStyles.headerTitle}>Statistiche</Text>
+                </View>
+
+                <ScrollView 
+                    style={statsStyles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 120 }}
+                >
+                    {/* Total Items Card */}
+                    <View style={statsStyles.totalCard}>
+                        <Text style={statsStyles.totalLabel}>Totale Capi</Text>
+                        <Text style={statsStyles.totalValue}>{stats.totalItems}</Text>
+                    </View>
+
+                    {/* Categories */}
+                    {renderStatSection('Per Categoria', stats.byCategory)}
+
+                    {/* Colors */}
+                    {renderStatSection('Per Colore', stats.byColor)}
+
+                    {/* Brands */}
+                    {renderStatSection('Brand Più Usati', stats.byBrand)}
+
+                    {/* Sizes */}
+                    {renderStatSection('Taglie', stats.bySize)}
+                </ScrollView>
+            </View>
+        </SafeAreaView>
+    );
+};
+
+// ====================================================================
 // Auth Screen (Login/Register)
 // ====================================================================
 const AuthScreen = ({ navigation }) => {
@@ -1210,7 +1361,10 @@ const DetailScreen = ({ navigation, route }) => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={detailStyles.container}
         >
-          <ScrollView>
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
+          >
             <Animated.View entering={FadeIn.delay(100).duration(300)} style={detailStyles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
@@ -1294,31 +1448,40 @@ const DetailScreen = ({ navigation, route }) => {
 // Componente Card Articolo e Home (HomeScreen)
 // ====================================================================
 
-// Componente per la singola card articolo
+// Componente per la singola card articolo (Grid Layout)
 const ItemCard = ({ item, onClick }) => {
-    const imageUrl = item.thumbnailUrl || `https://placehold.co/150x200/4F46E5/FFFFFF?text=${item.name.substring(0, 10)}`;
+    const imageUrl = item.thumbnailUrl || `https://placehold.co/300x300/4F46E5/FFFFFF?text=${item.name.substring(0, 10)}`;
     
     return (
-        <Animated.View entering={FadeIn.duration(250)} exiting={FadeOut.duration(150)}>
-            <TouchableOpacity style={itemCardStyles.card} onPress={() => onClick(item)}>
+        <Animated.View 
+            entering={FadeIn.duration(250)} 
+            exiting={FadeOut.duration(150)}
+            style={itemCardStyles.wrapper}
+        >
+            <TouchableOpacity 
+                style={itemCardStyles.card} 
+                onPress={() => onClick(item)}
+                activeOpacity={0.9}
+            >
                 <Animated.Image 
-                source={{ uri: imageUrl }} 
-                style={itemCardStyles.image} 
-                sharedTransitionTag={`item-${item.id}`}
-                sharedTransitionStyle={(values) => {
-                    'worklet';
-                    return {
-                        borderRadius: 10,
-                        transform: [
-                            { scale: values.targetOriginX !== undefined ? 1.05 : 1 }
-                        ],
-                    };
-                }}
-            />
+                    source={{ uri: imageUrl }} 
+                    style={itemCardStyles.image} 
+                    sharedTransitionTag={`item-${item.id}`}
+                    sharedTransitionStyle={(values) => {
+                        'worklet';
+                        return {
+                            borderRadius: 12,
+                        };
+                    }}
+                />
                 <View style={itemCardStyles.info}>
-                <Text style={itemCardStyles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={itemCardStyles.category} numberOfLines={1}>{item.category} ({item.mainColor})</Text>
-                <Text style={itemCardStyles.brand} numberOfLines={1}>{item.brand} | Taglia: {item.size}</Text>
+                    <Text style={itemCardStyles.name} numberOfLines={1}>{item.name}</Text>
+                    <Text style={itemCardStyles.category} numberOfLines={1}>
+                        {item.category} ({item.mainColor})
+                    </Text>
+                    <Text style={itemCardStyles.brand} numberOfLines={1}>
+                        {item.brand} | {item.size}
+                    </Text>
                 </View>
             </TouchableOpacity>
         </Animated.View>
@@ -1383,7 +1546,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
                 {/* Right Side Tabs */}
                 <View style={customTabBarStyles.sideContainer}>
-                    {state.routes.slice(3).map((route, index) => {
+                    {state.routes.slice(3, 5).map((route, index) => {
                         const { options } = descriptors[route.key];
                         const label = options.tabBarLabel;
                         const isFocused = state.index === index + 3;
@@ -1401,7 +1564,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                             }
                         };
 
-                        const IconComponent = User;
+                        const IconComponent = route.name === 'StatsTab' ? BarChart3 : User;
                         const iconColor = isFocused ? COLORS.navActive : COLORS.navInactive;
 
                         return (
@@ -1445,7 +1608,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     );
 };
 
-// Componente Home (Schermata Principale App - Armadio)
+// Componente Home (Schermata Principale App - Armadio con Griglia)
 const HomeScreen = ({ navigation, route }) => {
     const { user } = route.params || { user: { uid: 'test-user' } };
     const [items, setItems] = useState([]);
@@ -1453,6 +1616,7 @@ const HomeScreen = ({ navigation, route }) => {
     const [filter, setFilter] = useState({ text: '', category: '', color: '' });
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
+    const [showFilters, setShowFilters] = useState(false);
 
     // Fetch dei dati in tempo reale
     useEffect(() => {
@@ -1500,51 +1664,54 @@ const HomeScreen = ({ navigation, route }) => {
         return matchesText && matchesCategory && matchesColor;
     });
 
-    const handleSignOut = async () => {
-        try {
-            // ❌ AUTH DISABILITATO - Logout simulato
-            console.log("Logout simulato");
-            navigation.replace('Auth');
-        } catch (error) {
-            alert("Errore Disconnessione: " + error.message);
-        }
-    };
+    const renderItem = ({ item }) => (
+        <ItemCard 
+            item={item} 
+            onClick={(selectedItem) => navigation.navigate('Detail', { item: selectedItem })}
+        />
+    );
 
     return (
-        <View style={styles.contentContainer}>
-            <View style={headerStyles.header}>
-                <Text style={headerStyles.title}>Il Mio Armadio</Text>
-                <TouchableOpacity 
-                    onPress={handleSignOut} 
-                    style={headerStyles.signOutButton}
-                    title="Disconnetti"
-                >
-                    <Text style={headerStyles.signOutButtonText}>Esci</Text>
-                </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-                style={styles.scrollContent}
-                showsVerticalScrollIndicator={true}
-                contentContainerStyle={styles.scrollContentContainer}
-            >
-                {/* Componente Filtri */}
-                <View style={filterStyles.container}>
+        <View style={homeScreenStyles.container}>
+            {/* Header con Ricerca e Icone */}
+            <View style={homeScreenStyles.header}>
+                <View style={homeScreenStyles.headerTop}>
+                    <Text style={homeScreenStyles.headerTitle}>Il Mio Armadio</Text>
+                    <View style={homeScreenStyles.headerIcons}>
+                        <TouchableOpacity 
+                            onPress={() => setShowFilters(!showFilters)}
+                            style={homeScreenStyles.iconButton}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <User size={24} color={COLORS.textPrimary} strokeWidth={2} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Barra di Ricerca */}
+                <View style={homeScreenStyles.searchContainer}>
                     <TextInput
-                        style={filterStyles.searchInput}
-                        placeholder="Cerca per nome o marca..."
-                        placeholderTextColor="#9CA3AF"
+                        style={homeScreenStyles.searchInput}
+                        placeholder="Search"
+                        placeholderTextColor={COLORS.textSecondary}
                         value={filter.text}
                         onChangeText={text => setFilter(prev => ({...prev, text}))}
                     />
-                    <View style={filterStyles.pickerRow}>
+                    <TouchableOpacity style={homeScreenStyles.searchIcon}>
+                        <Search size={20} color={COLORS.textSecondary} strokeWidth={2} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* Filtri Categoria e Colore (collassabili) */}
+                {showFilters && (
+                    <View style={homeScreenStyles.filtersRow}>
                         <Picker
                             selectedValue={filter.category}
                             onValueChange={value => setFilter(prev => ({...prev, category: value}))}
-                            style={filterStyles.picker}
-                            dropdownIconColor="#111827"
+                            style={homeScreenStyles.picker}
+                            dropdownIconColor={COLORS.textPrimary}
                         >
-                            <Picker.Item label="Tutte le categorie" value="" />
+                            <Picker.Item label="Tutte" value="" />
                             {categories.map(cat => (
                                 <Picker.Item key={cat} label={cat} value={cat} />
                             ))}
@@ -1552,47 +1719,41 @@ const HomeScreen = ({ navigation, route }) => {
                         <Picker
                             selectedValue={filter.color}
                             onValueChange={value => setFilter(prev => ({...prev, color: value}))}
-                            style={filterStyles.picker}
-                            dropdownIconColor="#111827"
+                            style={homeScreenStyles.picker}
+                            dropdownIconColor={COLORS.textPrimary}
                         >
-                            <Picker.Item label="Tutti i colori" value="" />
+                            <Picker.Item label="Tutti" value="" />
                             {colors.map(color => (
                                 <Picker.Item key={color} label={color} value={color} />
                             ))}
                         </Picker>
                     </View>
-                </View>
-
-                <Text style={styles.subtitle}>
-                    Totale capi: <Text style={{fontWeight: '600'}}>{items.length}</Text> - Filtrati: <Text style={{fontWeight: '600'}}>{filteredItems.length}</Text>
-                </Text>
-
-                {loadingItems ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#4F46E5" />
-                        <Text style={{ marginTop: 10, color: '#333' }}>Caricamento del tuo armadio...</Text>
-                    </View>
-                ) : items.length === 0 ? (
-                    <View style={emptyStateStyles.container}>
-                        <Text style={emptyStateStyles.icon}>👚</Text>
-                        <Text style={emptyStateStyles.title}>Armadio Vuoto</Text>
-                        <Text style={emptyStateStyles.text}>Non hai ancora aggiunto nessun capo. Iniziamo subito!</Text>
-                    </View>
-                ) : (
-                    <View style={itemsGridStyles.container}>
-                        {filteredItems.map(item => (
-                            <ItemCard 
-                                key={item.id} 
-                                item={item} 
-                                onClick={(selectedItem) => navigation.navigate('Detail', { item: selectedItem })}
-                            />
-                        ))}
-                    </View>
                 )}
-                
-                {/* Padding bottom per Tab Bar */}
-                <View style={{ height: 100 }} />
-            </ScrollView>
+            </View>
+
+            {/* Griglia Items */}
+            {loadingItems ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={{ marginTop: 10, color: COLORS.textSecondary }}>Caricamento...</Text>
+                </View>
+            ) : items.length === 0 ? (
+                <View style={emptyStateStyles.container}>
+                    <Text style={emptyStateStyles.icon}>👚</Text>
+                    <Text style={emptyStateStyles.title}>Armadio Vuoto</Text>
+                    <Text style={emptyStateStyles.text}>Non hai ancora aggiunto nessun capo.</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredItems}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}
+                    numColumns={2}
+                    columnWrapperStyle={homeScreenStyles.row}
+                    contentContainerStyle={homeScreenStyles.gridContent}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
         </View>
     );
 };
@@ -1723,6 +1884,16 @@ const MainTabNavigator = ({ user }) => (
             options={{ 
                 tabBarLabel: '',
                 tabBarAccessibilityLabel: 'Aggiungi Capo con Fotocamera'
+            }}
+        />
+        
+        <Tab.Screen 
+            name="StatsTab" 
+            component={StatsScreen}
+            initialParams={{ user }}
+            options={{ 
+                tabBarLabel: 'Statistiche',
+                tabBarAccessibilityLabel: 'Statistiche Armadio'
             }}
         />
         
@@ -1982,52 +2153,128 @@ const itemsGridStyles = StyleSheet.create({
 });
 
 const itemCardStyles = StyleSheet.create({
+    wrapper: {
+        flex: 1,
+        padding: 8,
+    },
     card: {
         backgroundColor: COLORS.surface,
-        borderRadius: 12,
+        borderRadius: 16,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: COLORS.border,
-        height: 220,
-        marginBottom: 16,
         // Shadow per iOS
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
         // Elevation per Android
-        elevation: 8,
+        elevation: 6,
     },
     image: {
         width: '100%',
-        height: 140,
+        aspectRatio: 1,
         resizeMode: 'cover',
+        backgroundColor: COLORS.surfaceLight,
     },
     info: {
         padding: 12,
-        flex: 1,
-        justifyContent: 'space-between',
+        minHeight: 75,
     },
     name: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '700',
         color: COLORS.textPrimary,
-        marginBottom: 6,
-        lineHeight: 20,
-    },
-    category: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: COLORS.primary,
         marginBottom: 4,
         lineHeight: 18,
     },
+    category: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.primary,
+        marginBottom: 4,
+        lineHeight: 16,
+    },
     brand: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '500',
         color: COLORS.textSecondary,
-        lineHeight: 16,
+        lineHeight: 14,
     }
+});
+
+// HomeScreen Styles (Header + Griglia)
+const homeScreenStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+    },
+    header: {
+        backgroundColor: COLORS.surface,
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 50 : 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+    },
+    headerIcons: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    iconButton: {
+        padding: 4,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.background,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        paddingHorizontal: 16,
+        height: 48,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: COLORS.textPrimary,
+        paddingVertical: 0,
+    },
+    searchIcon: {
+        marginLeft: 8,
+    },
+    filtersRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 12,
+    },
+    picker: {
+        flex: 1,
+        height: 40,
+        backgroundColor: COLORS.background,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    row: {
+        justifyContent: 'space-between',
+        paddingHorizontal: 8,
+    },
+    gridContent: {
+        paddingTop: 12,
+        paddingBottom: 120,
+    },
 });
 
 const fabStyles = {
@@ -2292,6 +2539,104 @@ const profileStyles = StyleSheet.create({
         fontWeight: '600',
     },
 });
+
+const statsStyles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        backgroundColor: COLORS.surface,
+        gap: 12,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+        lineHeight: 28,
+    },
+    scrollContent: {
+        flex: 1,
+        paddingHorizontal: 20,
+    },
+    totalCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 24,
+        alignItems: 'center',
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...Platform.select({
+            ios: {
+                shadowColor: COLORS.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 6,
+            },
+        }),
+    },
+    totalLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
+    totalValue: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: COLORS.primary,
+        lineHeight: 56,
+    },
+    section: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+        marginBottom: 16,
+        letterSpacing: 0.3,
+    },
+    statRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    statLabel: {
+        fontSize: 15,
+        color: COLORS.textSecondary,
+        fontWeight: '500',
+        flex: 1,
+    },
+    statValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.primary,
+        minWidth: 40,
+        textAlign: 'right',
+    },
+});
+
 
 const emptyStateStyles = {
     container: {
@@ -2613,11 +2958,8 @@ const detailStyles = StyleSheet.create({
     },
     image: {
         width: '100%',
-        height: 'auto',
-        borderRadius: 10,
-        marginBottom: 15,
-        objectFit: 'contain',
-        maxHeight: 250,
+        height: 400,
+        resizeMode: 'cover',
         backgroundColor: COLORS.surface
     },
     form: {
@@ -2651,70 +2993,110 @@ const detailStyles = StyleSheet.create({
     buttonGroup: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 15,
+        marginTop: 24,
+        gap: 12,
     },
     saveButton: {
         flex: 1,
-        padding: 10,
-        borderRadius: 6,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
         backgroundColor: COLORS.primary,
-        color: '#FFFFFF',
-        fontWeight: '600',
-        fontSize: 16,
-        borderWidth: 0,
-        cursor: 'pointer',
-        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Platform.select({
+            ios: {
+                shadowColor: COLORS.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 6,
+            },
+        }),
     },
     cancelButton: {
         flex: 1,
-        padding: 10,
-        borderRadius: 6,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
         backgroundColor: COLORS.surfaceLight,
-        color: COLORS.textSecondary,
-        fontWeight: '600',
-        fontSize: 16,
-        borderWidth: 0,
-        cursor: 'pointer',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     info: {
-        marginBottom: 15,
+        padding: 20,
+        backgroundColor: COLORS.surface,
+        marginHorizontal: 16,
+        marginVertical: 20,
+        borderRadius: 16,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 8,
+            },
+        }),
     },
     itemName: {
-        fontSize: 22,
-        fontWeight: '700',
+        fontSize: 28,
+        fontWeight: '800',
         color: COLORS.textPrimary,
-        margin: 0,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        paddingBottom: 5
+        marginBottom: 16,
+        letterSpacing: -0.5,
     },
     metadata: {
-        fontSize: 16,
+        fontSize: 17,
         color: COLORS.textSecondary,
-        margin: 5,
+        marginBottom: 12,
+        paddingLeft: 8,
+        lineHeight: 24,
+        fontWeight: '500',
     },
     editButton: {
         flex: 1,
-        padding: 10,
-        borderRadius: 6,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
         backgroundColor: COLORS.primary,
-        color: '#FFFFFF',
-        fontWeight: '600',
-        fontSize: 16,
-        borderWidth: 0,
-        cursor: 'pointer',
-        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Platform.select({
+            ios: {
+                shadowColor: COLORS.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 6,
+            },
+        }),
     },
     deleteButton: {
         flex: 1,
-        padding: 10,
-        borderRadius: 6,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 12,
         backgroundColor: COLORS.error,
-        color: '#FFFFFF',
-        fontWeight: '600',
-        fontSize: 16,
-        borderWidth: 0,
-        cursor: 'pointer',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Platform.select({
+            ios: {
+                shadowColor: COLORS.error,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.4,
+                shadowRadius: 8,
+            },
+            android: {
+                elevation: 6,
+            },
+        }),
     },
 });
 
