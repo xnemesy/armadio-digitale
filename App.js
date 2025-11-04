@@ -20,24 +20,29 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 
+// Lucide Icons (The Athletic Style)
+import { Home, Zap, Camera, User, ChevronLeft, Image as ImageIcon } from 'lucide-react-native';
+
 // React Native Firebase (moduli nativi)
 import storage from '@react-native-firebase/storage';
 import firestore from '@react-native-firebase/firestore';
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
 
 // ====================================================================
 // Design System - Palette Dark/Minimal (The Athletic Style)
 // ====================================================================
 const COLORS = {
     // Background
-    background: '#0A0A0A',        // Nero profondo
+    background: '#121212',        // The Athletic dark background
     surface: '#1A1A1A',           // Surface cards
     surfaceLight: '#2A2A2A',      // Surface hover/elevated
     
@@ -364,9 +369,11 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
         <View style={outfitStyles.container}>
             <View style={detailStyles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
+                    <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
                 </TouchableOpacity>
-                <Text style={detailStyles.title}>👗 Outfit Builder AI</Text>
+                <Text style={detailStyles.title}>
+                    <Zap size={20} color={COLORS.primary} /> Outfit Builder AI
+                </Text>
             </View>
 
             <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 20}}>
@@ -668,7 +675,7 @@ const AddItemScreen = ({ navigation, route }) => {
             <View style={addItemStyles.container}>
                 <View style={addItemStyles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={addItemStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
+                        <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={addItemStyles.title}>Aggiungi Nuovo Capo</Text>
                 </View>
@@ -695,14 +702,14 @@ const AddItemScreen = ({ navigation, route }) => {
                         </View>
                     )}
 
-            {/* Pulsanti Fotocamera e Galleria */}
+            {/* Pulsanti Fotocamera e Galleria con Lucide Icons */}
             <View style={addItemStyles.buttonRow}>
                 <TouchableOpacity 
                     onPress={handleTakePhoto}
                     style={[addItemStyles.actionButton, addItemStyles.cameraButton]}
                     disabled={loading}
                 >
-                    <Text style={addItemStyles.buttonIcon}>📸</Text>
+                    <Camera size={32} color={COLORS.primary} strokeWidth={2} />
                     <Text style={addItemStyles.buttonText}>Scatta Foto</Text>
                 </TouchableOpacity>
 
@@ -711,7 +718,7 @@ const AddItemScreen = ({ navigation, route }) => {
                     style={[addItemStyles.actionButton, addItemStyles.galleryButton]}
                     disabled={loading}
                 >
-                    <Text style={addItemStyles.buttonIcon}>🖼️</Text>
+                    <ImageIcon size={32} color={COLORS.primaryLight} strokeWidth={2} />
                     <Text style={addItemStyles.buttonText}>Dalla Galleria</Text>
                 </TouchableOpacity>
             </View>
@@ -905,7 +912,7 @@ const ProfileScreen = ({ navigation, route }) => {
                     {/* User Info Card */}
                     <View style={profileStyles.userCard}>
                         <View style={profileStyles.avatarContainer}>
-                            <Text style={profileStyles.avatarIcon}>👤</Text>
+                            <User size={40} color="#FFFFFF" strokeWidth={2.5} />
                         </View>
                         <Text style={profileStyles.userName}>
                             {user.email || 'Utente'}
@@ -971,13 +978,6 @@ const ProfileScreen = ({ navigation, route }) => {
 
                     <View style={{ height: 100 }} />
                 </ScrollView>
-
-                {/* Bottom Nav Bar */}
-                <BottomNavBar 
-                    navigation={navigation} 
-                    user={user} 
-                    currentRoute="Profile"
-                />
             </View>
         </SafeAreaView>
     );
@@ -1143,7 +1143,7 @@ const DetailScreen = ({ navigation, route }) => {
           <ScrollView>
             <Animated.View entering={FadeIn.delay(100).duration(300)} style={detailStyles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={detailStyles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Text style={{color: '#4F46E5', fontSize: 18}}>← Indietro</Text>
+                    <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
                 </TouchableOpacity>
                 <Text style={detailStyles.title}>Dettaglio Capo</Text>
             </Animated.View>
@@ -1256,72 +1256,96 @@ const ItemCard = ({ item, onClick }) => {
 };
 
 // ====================================================================
-// Bottom Navigation Bar Component (The Athletic Style)
+// Custom Tab Bar Component (The Athletic Style con Lucide Icons)
 // ====================================================================
-const BottomNavBar = ({ navigation, user, currentRoute }) => {
-    const navButtons = [
-        {
-            id: 'wardrobe',
-            icon: '👔',
-            label: 'Armadio',
-            route: 'Home',
-            haptic: 'Light'
-        },
-        {
-            id: 'camera',
-            icon: '📷',
-            label: 'Fotocamera',
-            route: 'AddItem',
-            haptic: 'Medium',
-            isPrimary: true
-        },
-        {
-            id: 'profile',
-            icon: '👤',
-            label: 'Profilo',
-            route: 'Profile',
-            haptic: 'Light'
-        }
-    ];
-
-    const handlePress = (button) => {
-        if (button.haptic === 'Medium') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        } else {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-        navigation.navigate(button.route, { user });
-    };
-
+const CustomTabBar = ({ state, descriptors, navigation }) => {
     return (
-        <View style={bottomNavStyles.container}>
-            {navButtons.map((button) => {
-                const isActive = currentRoute === button.route;
-                const isPrimary = button.isPrimary;
+        <View style={customTabBarStyles.container}>
+            {state.routes.map((route, index) => {
+                const { options } = descriptors[route.key];
+                const label = options.tabBarLabel !== undefined
+                    ? options.tabBarLabel
+                    : options.title !== undefined
+                    ? options.title
+                    : route.name;
+
+                const isFocused = state.index === index;
+                const isPrimary = route.name === 'AddItem';
+
+                const onPress = () => {
+                    // Haptic feedback
+                    if (isPrimary) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    } else {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+
+                    const event = navigation.emit({
+                        type: 'tabPress',
+                        target: route.key,
+                        canPreventDefault: true,
+                    });
+
+                    if (!isFocused && !event.defaultPrevented) {
+                        navigation.navigate(route.name);
+                    }
+                };
+
+                // Render icone Lucide
+                let IconComponent;
+                let iconSize = 24;
                 
+                switch (route.name) {
+                    case 'HomeTab':
+                        IconComponent = Home;
+                        break;
+                    case 'OutfitAITab':
+                        IconComponent = Zap;
+                        break;
+                    case 'AddItem':
+                        IconComponent = Camera;
+                        iconSize = 28; // Più grande per il pulsante primario
+                        break;
+                    case 'ProfileTab':
+                        IconComponent = User;
+                        break;
+                    default:
+                        IconComponent = Home;
+                }
+
+                const iconColor = isPrimary 
+                    ? '#FFFFFF' 
+                    : isFocused 
+                        ? COLORS.navActive 
+                        : COLORS.navInactive;
+
                 return (
                     <TouchableOpacity
-                        key={button.id}
+                        key={route.key}
+                        accessibilityRole="button"
+                        accessibilityState={isFocused ? { selected: true } : {}}
+                        accessibilityLabel={options.tabBarAccessibilityLabel}
+                        testID={options.tabBarTestID}
+                        onPress={onPress}
                         style={[
-                            bottomNavStyles.button,
-                            isPrimary && bottomNavStyles.primaryButton
+                            customTabBarStyles.button,
+                            isPrimary && customTabBarStyles.primaryButton
                         ]}
-                        onPress={() => handlePress(button)}
                         activeOpacity={0.7}
                     >
-                        <Text style={[
-                            bottomNavStyles.icon,
-                            isPrimary && bottomNavStyles.primaryIcon
-                        ]}>
-                            {button.icon}
-                        </Text>
-                        <Text style={[
-                            bottomNavStyles.label,
-                            isActive && bottomNavStyles.labelActive,
-                            isPrimary && bottomNavStyles.primaryLabel
-                        ]}>
-                            {button.label}
-                        </Text>
+                        <IconComponent 
+                            size={iconSize} 
+                            color={iconColor}
+                            strokeWidth={isFocused ? 2.5 : 2}
+                        />
+                        {!isPrimary && (
+                            <Text style={[
+                                customTabBarStyles.label,
+                                isFocused && customTabBarStyles.labelActive
+                            ]}>
+                                {label}
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 );
             })}
@@ -1474,22 +1498,156 @@ const HomeScreen = ({ navigation, route }) => {
                     </View>
                 )}
                 
-                {/* Padding bottom per Bottom Nav Bar */}
+                {/* Padding bottom per Tab Bar */}
                 <View style={{ height: 100 }} />
             </ScrollView>
-
-            {/* Bottom Navigation Bar */}
-            <BottomNavBar 
-                navigation={navigation} 
-                user={user} 
-                currentRoute="Home"
-            />
         </View>
     );
 };
 
 // ====================================================================
-// Componente Principale (Root) - MANTIENI SOLO QUESTO
+// Stack Navigators Annidati (per Hero Transitions)
+// ====================================================================
+
+// Home Stack (Armadio + Detail con hero transition)
+const HomeStackNavigator = ({ user }) => (
+    <Stack.Navigator
+        screenOptions={{
+            headerShown: false,
+            animation: 'default',
+            contentStyle: { backgroundColor: COLORS.background }
+        }}
+    >
+        <Stack.Screen 
+            name="HomeMain" 
+            component={HomeScreen}
+            initialParams={{ user }}
+        />
+        <Stack.Screen 
+            name="Detail" 
+            component={DetailScreen}
+            options={{
+                animation: 'default',
+                presentation: 'card',
+                gestureEnabled: true,
+                gestureDirection: 'horizontal',
+                transitionSpec: {
+                    open: {
+                        animation: 'spring',
+                        config: {
+                            stiffness: 1000,
+                            damping: 500,
+                            mass: 3,
+                            overshootClamping: true,
+                            restDisplacementThreshold: 0.01,
+                            restSpeedThreshold: 0.01,
+                        },
+                    },
+                    close: {
+                        animation: 'spring',
+                        config: {
+                            stiffness: 1000,
+                            damping: 500,
+                            mass: 3,
+                            overshootClamping: true,
+                            restDisplacementThreshold: 0.01,
+                            restSpeedThreshold: 0.01,
+                        },
+                    },
+                },
+            }}
+        />
+    </Stack.Navigator>
+);
+
+// Outfit AI Stack
+const OutfitAIStackNavigator = ({ user }) => (
+    <Stack.Navigator
+        screenOptions={{
+            headerShown: false,
+            animation: 'default',
+            contentStyle: { backgroundColor: COLORS.background }
+        }}
+    >
+        <Stack.Screen 
+            name="OutfitBuilderMain" 
+            component={OutfitBuilderScreen}
+            initialParams={{ user }}
+        />
+    </Stack.Navigator>
+);
+
+// Profile Stack
+const ProfileStackNavigator = ({ user }) => (
+    <Stack.Navigator
+        screenOptions={{
+            headerShown: false,
+            animation: 'default',
+            contentStyle: { backgroundColor: COLORS.background }
+        }}
+    >
+        <Stack.Screen 
+            name="ProfileMain" 
+            component={ProfileScreen}
+            initialParams={{ user }}
+        />
+    </Stack.Navigator>
+);
+
+// ====================================================================
+// Tab Navigator Principale (The Athletic Style)
+// ====================================================================
+const MainTabNavigator = ({ user }) => (
+    <Tab.Navigator
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{
+            headerShown: false,
+        }}
+    >
+        <Tab.Screen 
+            name="HomeTab" 
+            options={{ 
+                tabBarLabel: 'Armadio',
+                tabBarAccessibilityLabel: 'Armadio'
+            }}
+        >
+            {() => <HomeStackNavigator user={user} />}
+        </Tab.Screen>
+        
+        <Tab.Screen 
+            name="OutfitAITab" 
+            options={{ 
+                tabBarLabel: 'Outfit AI',
+                tabBarAccessibilityLabel: 'Outfit AI Builder'
+            }}
+        >
+            {() => <OutfitAIStackNavigator user={user} />}
+        </Tab.Screen>
+        
+        <Tab.Screen 
+            name="AddItem" 
+            component={AddItemScreen}
+            initialParams={{ user }}
+            options={{ 
+                tabBarLabel: '',
+                tabBarAccessibilityLabel: 'Aggiungi Capo con Fotocamera'
+            }}
+        />
+        
+        <Tab.Screen 
+            name="ProfileTab" 
+            options={{ 
+                tabBarLabel: 'Profilo',
+                tabBarAccessibilityLabel: 'Profilo Utente'
+            }}
+        >
+            {() => <ProfileStackNavigator user={user} />}
+        </Tab.Screen>
+    </Tab.Navigator>
+);
+
+// ====================================================================
+// Componente Principale (Root)
 // ====================================================================
 
 const App = () => {
@@ -1532,8 +1690,8 @@ const App = () => {
     if (loading) {
         return (
             <View style={styles.fullScreenCenter}>
-                <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={{ marginTop: 10, color: '#333' }}>Caricamento App...</Text>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={{ marginTop: 10, color: COLORS.textPrimary }}>Caricamento App...</Text>
             </View>
         );
     }
@@ -1541,84 +1699,26 @@ const App = () => {
     return (
         <SafeAreaView style={styles.safeArea}>
             <StatusBar 
-                barStyle="dark-content" 
-                backgroundColor="#ffffff"
+                barStyle="light-content" 
+                backgroundColor={COLORS.background}
                 translucent={false}
             />
             <NavigationContainer>
-                <Stack.Navigator
-                    initialRouteName={user ? "Home" : "Auth"}
-                    screenOptions={{
-                        headerShown: false,
-                        animation: 'default',
-                        contentStyle: { backgroundColor: COLORS.background }
-                    }}
-                >
-                    <Stack.Screen 
-                        name="Auth" 
-                        component={AuthScreen}
-                    />
-                    <Stack.Screen 
-                        name="Home" 
-                        component={HomeScreen}
-                        initialParams={{ user }}
-                    />
-                    <Stack.Screen 
-                        name="Profile" 
-                        component={ProfileScreen}
-                        initialParams={{ user }}
-                    />
-                    <Stack.Screen 
-                        name="Detail" 
-                        component={DetailScreen}
-                        options={{
-                            animation: 'default',
-                            presentation: 'card',
-                            gestureEnabled: true,
-                            gestureDirection: 'horizontal',
-                            transitionSpec: {
-                                open: {
-                                    animation: 'spring',
-                                    config: {
-                                        stiffness: 1000,
-                                        damping: 500,
-                                        mass: 3,
-                                        overshootClamping: true,
-                                        restDisplacementThreshold: 0.01,
-                                        restSpeedThreshold: 0.01,
-                                    },
-                                },
-                                close: {
-                                    animation: 'spring',
-                                    config: {
-                                        stiffness: 1000,
-                                        damping: 500,
-                                        mass: 3,
-                                        overshootClamping: true,
-                                        restDisplacementThreshold: 0.01,
-                                        restSpeedThreshold: 0.01,
-                                    },
-                                },
-                            },
+                {user ? (
+                    <MainTabNavigator user={user} />
+                ) : (
+                    <Stack.Navigator
+                        screenOptions={{
+                            headerShown: false,
+                            contentStyle: { backgroundColor: COLORS.background }
                         }}
-                    />
-                    <Stack.Screen 
-                        name="AddItem" 
-                        component={AddItemScreen}
-                        options={{
-                            animation: 'slide_from_bottom',
-                            presentation: 'card'
-                        }}
-                    />
-                    <Stack.Screen 
-                        name="OutfitBuilder" 
-                        component={OutfitBuilderScreen}
-                        options={{
-                            animation: 'slide_from_right',
-                            presentation: 'card'
-                        }}
-                    />
-                </Stack.Navigator>
+                    >
+                        <Stack.Screen 
+                            name="Auth" 
+                            component={AuthScreen}
+                        />
+                    </Stack.Navigator>
+                )}
             </NavigationContainer>
         </SafeAreaView>
     );
@@ -1864,7 +1964,10 @@ const outfitButtonStyles = {
 // ====================================================================
 // Bottom Navigation Bar Styles
 // ====================================================================
-const bottomNavStyles = StyleSheet.create({
+// ====================================================================
+// Custom Tab Bar Styles (The Athletic Style con Lucide Icons)
+// ====================================================================
+const customTabBarStyles = StyleSheet.create({
     container: {
         position: 'absolute',
         bottom: 0,
@@ -1875,53 +1978,43 @@ const bottomNavStyles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-around',
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         paddingBottom: Platform.OS === 'ios' ? 20 : 10,
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 10,
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.4,
+        shadowRadius: 12,
+        elevation: 12,
     },
     button: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
+        paddingVertical: 10,
     },
     primaryButton: {
         backgroundColor: COLORS.primary,
-        borderRadius: 16,
-        paddingHorizontal: 20,
-        marginHorizontal: 10,
+        borderRadius: 20,
+        width: 64,
+        height: 64,
+        marginHorizontal: 12,
         shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    icon: {
-        fontSize: 24,
-        marginBottom: 4,
-    },
-    primaryIcon: {
-        fontSize: 28,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.5,
+        shadowRadius: 12,
+        elevation: 10,
     },
     label: {
         fontSize: 11,
         fontWeight: '500',
         color: COLORS.navInactive,
+        marginTop: 4,
     },
     labelActive: {
         color: COLORS.navActive,
         fontWeight: '600',
-    },
-    primaryLabel: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 12,
     },
 });
 
