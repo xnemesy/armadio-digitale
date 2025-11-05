@@ -411,7 +411,11 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 </Text>
             </View>
 
-            <ScrollView style={{flex: 1}} contentContainerStyle={{paddingBottom: 20}}>
+            <ScrollView 
+                style={{flex: 1}} 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{paddingBottom: 120}}
+            >
             <View style={outfitStyles.inputArea}>
                 <TextInput
                     style={outfitStyles.textarea}
@@ -591,6 +595,7 @@ const AddItemScreen = ({ navigation, route }) => {
         setLoading(true);
         setStatus('Analisi immagine in corso con Gemini AI...');
         let aiResult = null;
+        let missingFields = [];
         try {
             aiResult = await analyzeImageWithGemini(base64Content);
             
@@ -604,17 +609,18 @@ const AddItemScreen = ({ navigation, route }) => {
             }));
             
             // Controllo Dati Mancanti dopo AI
-            const missingFields = [];
-            if (!aiResult.size || aiResult.size === '') missingFields.push('Taglia');
-            if (!aiResult.brand || aiResult.brand === '') missingFields.push('Marca');
-            
-            if (missingFields.length > 0) {
-                Alert.alert(
-                    'Dati incompleti rilevati',
-                    `L'AI non ha rilevato: ${missingFields.join(', ')}.\n\nInseriscili manualmente prima di salvare il capo.`,
-                    [{ text: 'OK', style: 'default' }]
-                );
+            if (!aiResult.size || aiResult.size === '' || aiResult.size === 'N/A') {
+                missingFields.push('Taglia');
             }
+            if (!aiResult.brand || aiResult.brand === '' || aiResult.brand === 'N/A') {
+                missingFields.push('Marca');
+            }
+            
+            console.log('🔍 Controllo dati mancanti:', {
+                size: aiResult.size,
+                brand: aiResult.brand,
+                missingFields
+            });
             
             // Verifica Duplicati
             setStatus('Verifica duplicati nell\'armadio...');
@@ -644,6 +650,17 @@ const AddItemScreen = ({ navigation, route }) => {
 
             setStatus('Analisi completata. Verifica i metadati.');
             
+            // Mostra Alert DOPO il completamento (quando loading è false)
+            if (missingFields.length > 0) {
+                setTimeout(() => {
+                    Alert.alert(
+                        '⚠️ Dati Incompleti',
+                        `L'AI non ha rilevato:\n• ${missingFields.join('\n• ')}\n\nInseriscili manualmente prima di salvare.`,
+                        [{ text: 'OK', style: 'default' }]
+                    );
+                }, 500);
+            }
+            
         } catch (error) {
             setStatus('Errore analisi AI. Inserisci i dati manualmente.');
             console.error("Errore AI/Duplicati:", error);
@@ -658,9 +675,15 @@ const AddItemScreen = ({ navigation, route }) => {
     // Upload su Storage e Salvataggio su Firestore
     const handleSubmit = async () => {
         if (duplicateFound) {
-            // Utilizziamo un messaggio di conferma personalizzato (NO window.confirm)
-            const confirm = window.confirm(`Hai trovato un capo simile (${duplicateFound.name}). Sei sicuro di voler aggiungere questo articolo?`);
-            if (!confirm) { return; }
+            Alert.alert(
+                'Duplicato Rilevato',
+                `Hai trovato un capo simile (${duplicateFound.name}). Sei sicuro di voler aggiungere questo articolo?`,
+                [
+                    { text: 'Annulla', style: 'cancel' },
+                    { text: 'Aggiungi Comunque', style: 'default', onPress: () => saveItem() }
+                ]
+            );
+            return;
         }
         await saveItem();
     };
@@ -1332,28 +1355,43 @@ const DetailScreen = ({ navigation, route }) => {
     };
 
     const handleDelete = async () => {
-        const confirmDelete = window.confirm("Sei sicuro di voler eliminare questo capo? L'azione è irreversibile e rimuoverà la foto dal cloud.");
-        if (!confirmDelete) return;
-        
-        setLoading(true);
-        try {
-            // 1. Elimina il file da Storage
-            if (item.storagePath) {
-                await storage().ref(item.storagePath).delete();
-            }
-            
-            // 2. Elimina il documento da Firestore
-            await firestore()
-                .collection(`artifacts/${__app_id}/users/${item.userId}/items`)
-                .doc(item.id)
-                .delete();
-            
-            navigation.goBack(); // Torna alla Home
-        } catch (error) {
-            alert("Errore nell'eliminazione: " + error.message);
-        } finally {
-            setLoading(false);
-        }
+        Alert.alert(
+            'Elimina Capo',
+            "Sei sicuro di voler eliminare questo capo? L'azione è irreversibile e rimuoverà la foto dal cloud.",
+            [
+                { text: 'Annulla', style: 'cancel' },
+                { 
+                    text: 'Elimina', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        setLoading(true);
+                        try {
+                            // 1. Elimina il file da Storage
+                            if (item.storagePath) {
+                                const fileRef = storage().ref(item.storagePath);
+                                await fileRef.delete();
+                                console.log('✅ File eliminato da Storage:', item.storagePath);
+                            }
+                            
+                            // 2. Elimina il documento da Firestore
+                            await firestore()
+                                .collection(`artifacts/${__app_id}/users/${item.userId}/items`)
+                                .doc(item.id)
+                                .delete();
+                            console.log('✅ Documento eliminato da Firestore:', item.id);
+                            
+                            Alert.alert('Successo', 'Capo eliminato con successo!');
+                            navigation.goBack(); // Torna alla Home
+                        } catch (error) {
+                            console.error('❌ Errore eliminazione:', error);
+                            Alert.alert("Errore nell'eliminazione", error.message);
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     return (
