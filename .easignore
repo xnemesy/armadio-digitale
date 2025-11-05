@@ -1,0 +1,2 @@
+# Allow iOS GoogleService-Info.plist for EAS builds
+!ios/ArmadioDigitale/GoogleService-Info.plist
