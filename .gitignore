@@ -64,6 +64,11 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Xcode / iOS 
+/ios/.xcode.env.local
+/ios/Pods/
+/ios/build/
+
 # Native
 *.orig.*
 *.jks
