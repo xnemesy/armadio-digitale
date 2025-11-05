@@ -7,11 +7,6 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "cocoapods": {
-          "clean": true
-        }
-      },
       "android": {
         "gradleCommand": ":app:assembleDebug"
       }
