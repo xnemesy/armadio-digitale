@@ -16,7 +16,10 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.armadiodigitale.app",
-      googleServicesFile: "./ios/ArmadioDigitale/GoogleService-Info.plist",
+      // Copia automatica del GoogleService-Info.plist in fase di build iOS
+      // Imposta la variabile d'ambiente GOOGLE_SERVICE_INFO_PLIST al percorso del file
+      // oppure metti il file in root come ./GoogleService-Info.plist
+      googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }
