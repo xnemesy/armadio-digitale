@@ -35,3 +35,6 @@ android/app/build/
 
 # 7. Repository annidato/non necessario
 armadio-digitale/
+
+# 8. Backend (non necessario per build app)
+functions/
