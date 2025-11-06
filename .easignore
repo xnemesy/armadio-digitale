@@ -18,3 +18,20 @@ web-build/
 # 4. Moduli Nativi (Questi vengono ricreati da CocoaPods)
 ios/Pods/
 android/build/
+
+# 5. Altri output iOS/Android pesanti
+ios/build/
+ios/DerivedData/
+android/.gradle/
+android/app/build/
+
+# 6. Artefatti binari e cartelle locali non necessari
+*.apk
+*.aab
+*.ipa
+.DS_Store
+.idea/
+.git/
+
+# 7. Repository annidato/non necessario
+armadio-digitale/

@@ -29,6 +29,9 @@ web-build/
 android/
 ios/
 
+# Nested repo directory (should not be tracked)
+armadio-digitale/
+
 # OS files
 .DS_Store
 *.swp
