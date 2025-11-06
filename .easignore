@@ -38,3 +38,6 @@ armadio-digitale/
 
 # 8. Backend (non necessario per build app)
 functions/
+
+# 9. Documentazione (non necessaria alla build)
+docs/
