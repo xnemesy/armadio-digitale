@@ -129,6 +129,28 @@ npx expo install expo-dev-client
 npx expo run:android
 ```
 
+### Percorso con spazi ("Android app") causa errori di build
+Su macOS alcuni step (CocoaPods/Xcode/shell) possono fallire se il progetto è in un percorso con spazi. Puoi spostare in modo sicuro il progetto con lo script di relocate:
+
+```bash
+# Esempio: sposta in ~/Projects/ArmadioDigitale
+npm run relocate -- --dest "$HOME/Projects/ArmadioDigitale"
+
+# oppure: usa la destinazione di default ($HOME/Projects/<nome-cartella>)
+npm run relocate
+
+# Opzionale: rimuove la cartella originale dopo la copia
+npm run relocate -- --dest "$HOME/Projects/ArmadioDigitale" --remove-old
+```
+
+Note:
+- Lo script copia anche la cartella `.git` per preservare la history e i remoti.
+- Esclude cache/transient (Pods, build, .expo) che incorporano path assoluti.
+- Dopo lo spostamento, esegui:
+	- `npm install --legacy-peer-deps`
+	- `npx pod-install` (o `cd ios && pod install`)
+	- `npx expo run:ios` / `npx expo run:android`
+
 ## 📝 Note Tecniche
 
 - **React Native Firebase**: Richiede build nativi (non compatibile con Expo Go)
