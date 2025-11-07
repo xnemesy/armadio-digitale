@@ -64,8 +64,10 @@ Puoi usare i file `.example` come riferimento.
 npx expo run:android
 
 # iOS (solo su Mac)
-npx expo run:ios
+npm run ios:community
 ```
+
+Nota: il comando iOS usa EXPO_USE_COMMUNITY_AUTOLINKING=1 per allineare l'autolinking al percorso che ha già funzionato durante il pod install. Se preferisci il comando nativo, usa `npx expo run:ios`, ma in caso di errore in `use_native_modules!` riprova con `npm run ios:community`.
 
 ### Con Expo Go (limitato, non supporta moduli nativi Firebase)
 ```bash
