@@ -23,6 +23,7 @@ GoogleService-Info.plist
 *.key
 *.mobileprovision
 *.orig.*
+keystore.properties
 
 # Build outputs
 web-build/
