@@ -1,20 +1,40 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useThemeTokens } from '../design/tokens';
 
 const ItemCard = ({ item, onPress }) => {
-    const imageUrl = item.thumbnailUrl || `https://placehold.co/150x200/4F46E5/FFFFFF?text=${item.name.substring(0, 10)}`;
-    
+    const t = useThemeTokens();
+    const imageUrl = item.thumbnailUrl || `https://placehold.co/150x200/4F46E5/FFFFFF?text=${(item.name || '').substring(0, 10)}`;
+
     return (
-        <TouchableOpacity style={styles.card} onPress={() => onPress(item)}>
-            <Image 
-                source={{ uri: imageUrl }} 
-                style={styles.image}
-                resizeMode="cover"
-            />
-            <View style={styles.info}>
-                <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.category}>{item.category}</Text>
-                <Text style={styles.details}>{item.brand} • {item.size}</Text>
+        <TouchableOpacity
+            style={[
+                styles.card,
+                {
+                    backgroundColor: t.colors.surface,
+                    borderRadius: t.radii.lg,
+                    paddingBottom: t.spacing.sm,
+                    ...(Platform.OS === 'ios' ? t.shadow('sm') : { elevation: t.elevation.sm }),
+                },
+            ]}
+            onPress={() => onPress && onPress(item)}
+            activeOpacity={0.8}
+        >
+            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+            <View style={{ paddingHorizontal: t.spacing.md, paddingTop: t.spacing.sm }}>
+                <Text style={{ fontSize: t.typography.sizes.md, fontWeight: '600', color: t.colors.textPrimary }} numberOfLines={1}>
+                    {item.name}
+                </Text>
+                {!!item.category && (
+                    <Text style={{ marginTop: 2, fontSize: t.typography.sizes.sm, color: t.colors.textSecondary }} numberOfLines={1}>
+                        {item.category}
+                    </Text>
+                )}
+                {(item.brand || item.size) && (
+                    <Text style={{ marginTop: 2, fontSize: t.typography.sizes.sm, color: t.colors.placeholder }} numberOfLines={1}>
+                        {item.brand}{item.brand && item.size ? ' • ' : ''}{item.size}
+                    </Text>
+                )}
             </View>
         </TouchableOpacity>
     );
@@ -24,20 +44,12 @@ const styles = StyleSheet.create({
     card: {
         flex: 1,
         margin: 5,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 8,
         overflow: 'hidden',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
     },
     image: {
         width: '100%',
         height: 150,
     },
-    // ...altri stili...
 });
 
 export default ItemCard;
