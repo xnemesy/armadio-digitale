@@ -89,9 +89,11 @@ eas build --profile production --platform ios
 ## 📁 Struttura Progetto
 
 ```
-armadio-digitale/
+./
 ├── App.js                          # Componente principale
 ├── app.config.js                   # Configurazione Expo
+├── eas.json                        # Profili EAS Build
+├── package.json                    # Dipendenze e script
 ├── .env                            # Variabili d'ambiente (gitignored)
 ├── google-services.json            # Config Firebase Android (gitignored)
 ├── GoogleService-Info.plist        # Config Firebase iOS (gitignored)
@@ -102,6 +104,8 @@ armadio-digitale/
 ├── assets/                         # Immagini, icone, splash screen
 └── scripts/                        # Script di utilità
 ```
+
+Nota: in passato la repo conteneva una cartella annidata `armadio-digitale/` con una copia del progetto. Ora la struttura è stata semplificata e l'app vive unicamente nella root della repo.
 
 ## 🔑 Gestione API Keys
 
