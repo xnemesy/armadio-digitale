@@ -16,9 +16,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.armadiodigitale.app",
-      // Copia automatica del GoogleService-Info.plist in fase di build iOS
-      // Imposta la variabile d'ambiente GOOGLE_SERVICE_INFO_PLIST al percorso del file
-      // oppure metti il file in root come ./GoogleService-Info.plist
+      // Usa file rigenerato da script restore-firebase-config (oppure var env diretta)
       googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
@@ -28,7 +26,8 @@ export default {
       package: "com.armadiodigitale.app",
       targetSdkVersion: 34,
       compileSdkVersion: 34,
-      googleServicesFile: "./google-services.json",
+      // Usa file rigenerato da script restore-firebase-config
+      googleServicesFile: process.env.ANDROID_GOOGLE_SERVICES_FILE || "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"

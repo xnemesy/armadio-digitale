@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "clean": "rm -rf node_modules && rm -f package-lock.json && npm install --legacy-peer-deps",
     "audit:fix": "npm audit fix || true",
-    "audit:fix:force": "npm audit fix --force || true"
+    "audit:fix:force": "npm audit fix --force || true",
+    "restore:firebase": "node scripts/restore-firebase-config.js"
   },
   "dependencies": {
     "@react-native-firebase/app": "^23.5.0",
