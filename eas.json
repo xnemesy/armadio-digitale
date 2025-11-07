@@ -4,9 +4,6 @@
     "requireCommit": false,
     "appVersionSource": "remote"
   },
-  "hooks": {
-    "prebuild": "node scripts/restore-firebase-config.js"
-  },
   "build": {
     "development": {
       "developmentClient": true,
