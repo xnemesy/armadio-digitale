@@ -115,7 +115,7 @@ const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __ini
 
 // *** CHIAVE API GEMINI - Caricata da expo-constants extra ***
 const apiKey = Constants.expoConfig?.extra?.EXPO_PUBLIC_GEMINI_API_KEY || "AIzaSyB7zXvfWtBRk61es-Om6d_uVKXILiJJZbk"; 
-console.log('🔑 Gemini API Key loaded:', apiKey ? `${apiKey.substring(0, 15)}...` : 'MISSING!');
+console.log('🔑 Gemini API Key loaded:', apiKey ? 'YES' : 'MISSING!');
 
 // LA TUA CONFIGURAZIONE CORRETTA DI FIREBASE - Usando expo-constants extra
 const firebaseConfig = {
