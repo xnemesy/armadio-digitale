@@ -1,49 +1,92 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { Header } from '../components';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import firestore from '@react-native-firebase/firestore';
+import { ChevronLeft, Zap } from 'lucide-react-native';
+import { getOutfitSuggestion } from '../lib/ai';
+import { APP_ID } from '../config/appConfig';
+import { COLORS } from '../theme/colors';
 
-const OutfitBuilderScreen = ({ items, setViewMode }) => {
+const OutfitBuilderScreen = ({ navigation, route }) => {
+    const { user } = route.params || { user: { uid: 'test-user' } };
     const [request, setRequest] = useState('');
     const [suggestion, setSuggestion] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [items, setItems] = useState([]);
+    const [loadingItems, setLoadingItems] = useState(true);
+
+    useEffect(() => {
+        if (!user?.uid) return;
+        const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+        const unsub = firestore().collection(path).onSnapshot(s => {
+            setItems(s.docs.map(d => ({ id: d.id, ...d.data() })));
+            setLoadingItems(false);
+        }, () => setLoadingItems(false));
+        return () => unsub();
+    }, [user]);
 
     const handleGenerate = async () => {
-        if (!request.trim()) {
-            Alert.alert("Errore", "Inserisci una richiesta per l'outfit");
-            return;
-        }
-
+        if (!request.trim()) return;
+        if (items.length === 0) return;
         setLoading(true);
-        // Implementazione della chiamata AI qui
-        setLoading(false);
+        setSuggestion(null);
+        try {
+            const res = await getOutfitSuggestion(items, request);
+            setSuggestion(res);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <View style={styles.container}>
-            <Header title="Outfit Builder AI" onBack={() => setViewMode('home')} />
-            <ScrollView style={styles.content}>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Es: Outfit casual per un aperitivo..."
-                    value={request}
-                    onChangeText={setRequest}
-                    multiline
-                />
-                
-                <TouchableOpacity 
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={handleGenerate}
-                    disabled={loading}
-                >
-                    <Text style={styles.buttonText}>
-                        {loading ? 'Generazione...' : 'Genera Outfit'}
-                    </Text>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
                 </TouchableOpacity>
-
+                <Text style={styles.title}><Zap size={20} color={COLORS.primary} /> Outfit Builder AI</Text>
+            </View>
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
+                <View style={styles.inputArea}>
+                    <TextInput
+                        style={styles.textarea}
+                        placeholder="Es: Outfit casual per un aperitivo..."
+                        placeholderTextColor={COLORS.textSecondary}
+                        value={request}
+                        onChangeText={setRequest}
+                        multiline
+                    />
+                    <TouchableOpacity onPress={handleGenerate} style={styles.generateButton} disabled={loading}>
+                        {loading ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                                <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Generazione in corso...</Text>
+                            </View>
+                        ) : (
+                            <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 16 }}>Genera Outfit</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
                 {suggestion && (
                     <View style={styles.resultBox}>
-                        <Text style={styles.resultTitle}>Suggerimento AI</Text>
+                        <Text style={styles.resultTitle}>Suggerimento del tuo Stylist AI</Text>
                         <Text style={styles.resultText}>{suggestion}</Text>
+                    </View>
+                )}
+                {loadingItems ? (
+                    <View style={styles.inventoryPreview}>
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                        <Text style={styles.note}>Caricamento capi...</Text>
+                    </View>
+                ) : (
+                    <View style={styles.inventoryPreview}>
+                        <Text style={styles.inventoryTitle}>Capi nel tuo armadio ({items.length})</Text>
+                        <View style={styles.itemList}>
+                            {items.slice(0, 5).map(i => (
+                                <Text key={i.id} style={styles.itemTag}>{i.name} ({i.mainColor})</Text>
+                            ))}
+                            {items.length > 5 && <Text style={styles.itemTag}>...e altri {items.length - 5}</Text>}
+                        </View>
+                        <Text style={styles.note}>L'AI utilizzerà questi capi per il suggerimento.</Text>
                     </View>
                 )}
             </ScrollView>
@@ -52,48 +95,21 @@ const OutfitBuilderScreen = ({ items, setViewMode }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    content: {
-        flex: 1,
-        padding: 20,
-    },
-    input: {
-        backgroundColor: '#f3f4f6',
-        padding: 15,
-        borderRadius: 10,
-        minHeight: 100,
-        marginBottom: 15,
-    },
-    button: {
-        backgroundColor: '#059669',
-        padding: 15,
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: '600',
-    },
-    resultBox: {
-        marginTop: 20,
-        padding: 15,
-        backgroundColor: '#e0f2f1',
-        borderRadius: 10,
-    },
-    resultTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        marginBottom: 10,
-    },
-    resultText: {
-        lineHeight: 20,
-    },
+    container: { flex: 1, backgroundColor: COLORS.background },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface },
+    backButton: { paddingRight: 12, paddingVertical: 4 },
+    title: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+    inputArea: { margin: 16, padding: 15, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
+    textarea: { backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, color: COLORS.textPrimary, padding: 12, minHeight: 100, textAlignVertical: 'top' },
+    generateButton: { marginTop: 12, backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+    resultBox: { margin: 16, padding: 20, borderRadius: 12, backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.primary },
+    resultTitle: { fontSize: 18, fontWeight: '700', color: COLORS.primary, marginBottom: 8 },
+    resultText: { color: COLORS.textPrimary, fontSize: 15, lineHeight: 22 },
+    inventoryPreview: { marginHorizontal: 16, padding: 15, backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border },
+    inventoryTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8 },
+    itemList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+    itemTag: { backgroundColor: '#D1D5DB', color: '#374151', padding: 5, borderRadius: 5, fontSize: 12 },
+    note: { fontSize: 12, color: '#6B7280', fontStyle: 'italic' },
 });
 
 export default OutfitBuilderScreen;

@@ -138,12 +138,12 @@ const excludes = [
   '*.log',
 ];
 
-// Build rsync args
+// Build rsync args (compatible with macOS builtin rsync)
 const rsyncArgs = [
   '-a', // archive mode
-  '--info=NAME,STATS',
+  '--stats',
   '--delete-excluded',
-  '--human-readable',
+  '-h', // human-readable
   ...excludes.flatMap((p) => ['--exclude', p]),
   projectRoot + '/', // trailing slash = copy contents only
   destPath,

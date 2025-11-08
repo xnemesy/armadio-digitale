@@ -1,0 +1,21 @@
+// Centralized color palette used across screens
+export const COLORS = {
+  background: '#121212',
+  surface: '#1A1A1A',
+  surfaceLight: '#2A2A2A',
+  primary: '#10B981',
+  primaryDark: '#059669',
+  primaryLight: '#34D399',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#D1D5DB',
+  textMuted: '#9CA3AF',
+  border: '#374151',
+  borderLight: '#4B5563',
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
+  navBackground: '#1A1A1A',
+  navInactive: '#6B7280',
+  navActive: '#10B981',
+};

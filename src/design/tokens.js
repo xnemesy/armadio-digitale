@@ -51,35 +51,79 @@ const base = {
   },
 };
 
-export const lightColors = {
-  background: '#F6F7FB',
-  surface: '#FFFFFF',
-  border: '#E5E7EB',
-  textPrimary: '#111827',
-  textSecondary: '#6B7280',
-  accent: '#4F46E5',
+// "The Athletic" inspired dark palette (matches src/theme/colors.js)
+export const darkColors = {
+  background: '#121212',
+  surface: '#1A1A1A',
+  surfaceLight: '#2A2A2A',
+  border: '#374151',
+  borderLight: '#4B5563',
+  textPrimary: '#F9FAFB',
+  textSecondary: '#D1D5DB',
+  textMuted: '#9CA3AF',
+  accent: '#10B981',
+  accentDark: '#059669',
+  accentLight: '#34D399',
   placeholder: '#9CA3AF',
   success: '#10B981',
   warning: '#F59E0B',
   error: '#EF4444',
-  shadow: 'rgba(0,0,0,0.08)'
+  info: '#3B82F6',
+  shadow: 'rgba(0,0,0,0.5)',
+  // Navigation specific
+  navBackground: '#1A1A1A',
+  navInactive: '#6B7280',
+  navActive: '#10B981',
 };
 
-export const darkColors = {
-  background: '#0B0F1A',
-  surface: '#111827',
-  border: '#1F2937',
-  textPrimary: '#F9FAFB',
-  textSecondary: '#D1D5DB',
-  accent: '#818CF8',
+export const lightColors = {
+  background: '#F6F7FB',
+  surface: '#FFFFFF',
+  surfaceLight: '#F3F4F6',
+  border: '#E5E7EB',
+  borderLight: '#F3F4F6',
+  textPrimary: '#111827',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
+  accent: '#10B981',
+  accentDark: '#059669',
+  accentLight: '#34D399',
   placeholder: '#9CA3AF',
   success: '#10B981',
   warning: '#F59E0B',
-  error: '#F87171',
-  shadow: 'rgba(0,0,0,0.5)'
+  error: '#EF4444',
+  info: '#3B82F6',
+  shadow: 'rgba(0,0,0,0.08)',
+  // Navigation specific
+  navBackground: '#FFFFFF',
+  navInactive: '#9CA3AF',
+  navActive: '#10B981',
 };
 
-export function getTokens(mode = 'light') {
+// BACKWARD COMPATIBILITY ADAPTER
+// Re-export dark colors as COLORS for existing code that uses src/theme/colors.js
+export const COLORS = {
+  background: darkColors.background,
+  surface: darkColors.surface,
+  surfaceLight: darkColors.surfaceLight,
+  primary: darkColors.accent,
+  primaryDark: darkColors.accentDark,
+  primaryLight: darkColors.accentLight,
+  textPrimary: darkColors.textPrimary,
+  textSecondary: darkColors.textSecondary,
+  textMuted: darkColors.textMuted,
+  border: darkColors.border,
+  borderLight: darkColors.borderLight,
+  success: darkColors.success,
+  warning: darkColors.warning,
+  error: darkColors.error,
+  info: darkColors.info,
+  navBackground: darkColors.navBackground,
+  navInactive: darkColors.navInactive,
+  navActive: darkColors.navActive,
+};
+
+export function getTokens(mode = 'dark') {
   const colors = mode === 'dark' ? darkColors : lightColors;
   return {
     ...base,
@@ -98,7 +142,7 @@ export function getTokens(mode = 'light') {
 }
 
 export function useThemeTokens() {
-  const scheme = useColorScheme() || 'light';
+  const scheme = useColorScheme() || 'dark'; // Default to dark per "The Athletic" aesthetic
   return getTokens(scheme);
 }
 

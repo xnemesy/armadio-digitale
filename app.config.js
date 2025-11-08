@@ -46,6 +46,7 @@ export default {
       eas: {
         projectId: "e5ea0f61-c4df-4132-af5b-afe5993d7b33"
       },
+      APP_ID: process.env.APP_ID || "armadio-digitale",
       EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
       EXPO_PUBLIC_FIREBASE_API_KEY: process.env.EXPO_PUBLIC_FIREBASE_API_KEY
     }

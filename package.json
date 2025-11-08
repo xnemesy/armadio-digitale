@@ -15,9 +15,14 @@
     "audit:fix:force": "npm audit fix --force || true",
     "restore:firebase": "node scripts/restore-firebase-config.js",
     "eas-build-post-install": "node scripts/restore-firebase-config.js",
-    "relocate": "node scripts/relocate-project.js"
+    "relocate": "node scripts/relocate-project.js",
+    "lint": "eslint . --ext .js,.jsx",
+    "lint:fix": "eslint . --ext .js,.jsx --fix",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,json,md}\""
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-firebase/app": "^23.5.0",
     "@react-native-firebase/firestore": "^23.5.0",
     "@react-native-firebase/storage": "^23.5.0",
@@ -35,6 +40,7 @@
     "expo-image-picker": "~17.0.8",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
+    "lodash.debounce": "^4.0.8",
     "lucide-react-native": "^0.552.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
@@ -47,10 +53,18 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@babel/eslint-parser": "^7.28.5",
     "@react-native-community/cli": "^20.0.2",
     "@react-native-community/cli-platform-android": "^20.0.2",
     "@react-native-community/cli-platform-ios": "^20.0.2",
-    "babel-preset-expo": "^11.0.0"
+    "babel-preset-expo": "^11.0.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-native": "^5.0.0",
+    "prettier": "^3.6.2"
   },
   "expo": {
     "install": {

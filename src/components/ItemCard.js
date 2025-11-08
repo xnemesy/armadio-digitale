@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform } from 'react-native';
 import { useThemeTokens } from '../design/tokens';
+import PressableScale from './PressableScale';
 
 const ItemCard = ({ item, onPress }) => {
     const t = useThemeTokens();
     const imageUrl = item.thumbnailUrl || `https://placehold.co/150x200/4F46E5/FFFFFF?text=${(item.name || '').substring(0, 10)}`;
 
     return (
-        <TouchableOpacity
+        <PressableScale
             style={[
                 styles.card,
                 {
@@ -18,7 +19,7 @@ const ItemCard = ({ item, onPress }) => {
                 },
             ]}
             onPress={() => onPress && onPress(item)}
-            activeOpacity={0.8}
+            activeScale={0.96}
         >
             <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
             <View style={{ paddingHorizontal: t.spacing.md, paddingTop: t.spacing.sm }}>
@@ -36,7 +37,7 @@ const ItemCard = ({ item, onPress }) => {
                     </Text>
                 )}
             </View>
-        </TouchableOpacity>
+        </PressableScale>
     );
 };
 
