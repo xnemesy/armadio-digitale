@@ -16,11 +16,11 @@ export const analyzeImageWithGemini = async (base64Image) => {
         const result = await response.json();
         if (result.success && result.data) {
           return {
-            name: result.data.category || '',
+            name: result.data.name || result.data.category || '',
             category: result.data.category || '',
             mainColor: result.data.color || '',
             brand: result.data.brand || 'Generic',
-            size: 'M',
+            size: result.data.size || '',
           };
         }
         throw new Error(result.error || 'Errore analisi immagine');

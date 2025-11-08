@@ -4,11 +4,15 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
 
 ## ✨ Funzionalità
 
-- 📸 **Scansione AI**: Analizza foto dei capi con Gemini 2.5-flash (categoria, brand, colore, taglia)
+- 📸 **Scansione AI Avanzata**: Analizza foto dei capi con Gemini 2.0 Flash Exp per estrarre metadati dettagliati
+  - **Nome**: Modello specifico + colorway (es: "Air Jordan 4 Retro Bred Reimagined")
+  - **Brand**: Marca + sotto-marca (es: "Nike Jordan", "Adidas Originals")
+  - **Colore**: Sfumature precise (es: "Nero Lucido/Rosso" invece di solo "Nero")
+  - **Categoria**: Sottocategorie specifiche (es: "Scarpe Sportive/Sneakers")
 - 🔍 **Filtri Avanzati**: Ricerca per testo, categoria, colore, brand con debouncing
 - 🗂️ **Ordinamento**: Ordina per data, nome o brand
 - 💾 **Persistenza**: Filtri e sort salvati automaticamente tra sessioni
-- � **Micro-interazioni**: Animazioni fluide con Reanimated 3
+- ✨ **Micro-interazioni**: Animazioni fluide con Reanimated 3
 - 🔥 **Backend Firebase**: Firestore + Storage + Auth ready
 - 📊 **Analytics**: Statistiche dettagliate del guardaroba
 
@@ -17,7 +21,7 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
 - **Framework**: React Native 0.81.5 + Expo SDK 54 (dev client)
 - **Navigation**: React Navigation v6 (nested tabs + stacks)
 - **Backend**: Firebase (Firestore, Storage, Auth)
-- **AI**: Google Gemini 2.5-flash via Cloud Functions
+- **AI**: Google Gemini 2.0 Flash Exp via Cloud Functions con prompt ottimizzato per fashion
 - **State**: React Hooks + AsyncStorage per persistenza
 - **Animations**: Reanimated 3 + PressableScale component
 - **Design System**: Design tokens + COLORS palette (dark "The Athletic" style)
@@ -270,11 +274,48 @@ npm run lint:fix    # Auto-fix la maggior parte degli errori
 npm run format      # Format tutto il codice
 ```
 
+## 🧪 Testing
+
+Il progetto include test automatizzati con Jest e React Native Testing Library.
+
+### Eseguire i test
+
+```bash
+# Esegui tutti i test
+npm test
+
+# Esegui i test in modalità watch (ricompila automaticamente)
+npm run test:watch
+
+# Esegui i test con report di coverage
+npm run test:coverage
+```
+
+### Test Coverage
+
+Il progetto include test per:
+- **AI Integration** (`src/lib/__tests__/ai.test.js`): 18 test per analisi immagini, retry logic, shopping recommendations, outfit suggestions
+- **Components** (`src/components/__tests__/`): Test per PressableScale, ItemCard (rendering, props, onPress, styling)
+
+Target coverage:
+- Statements: 70%
+- Branches: 60%
+- Functions: 70%
+- Lines: 70%
+
+**Note**: I test dei componenti React Native richiedono mock complessi. Attualmente funzionano 16/18 test (88% success rate).
+
 ## 📝 Note Tecniche
 
 - **React Native Firebase**: Richiede build nativi (non compatibile con Expo Go)
 - **Upload immagini**: Usa `putFile(uri)` con React Native Firebase Storage
-- **Gemini AI**: Analizza immagini per estrarre metadata via Cloud Functions (`analyzeImageWithGemini`)
+- **Gemini AI Cloud Function**: 
+  - Modello: **Gemini 2.0 Flash Exp** con prompt ottimizzato per moda/fashion
+  - Prompt specializzato per estrarre modelli specifici (es: "Air Jordan 4 Retro Bred Reimagined")
+  - Identifica sotto-marche (es: "Nike Jordan" invece di solo "Nike")
+  - Riconosce colorway e sfumature precise (es: "Nero Lucido/Rosso")
+  - Caching Redis (7 giorni) + rate limiting (10 req/min per IP)
+  - Endpoint: `europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage`
 - **Duplicati**: Sistema automatico di rilevamento capi simili in `AddItemScreen`
 - **Debounced Search**: Ricerca con delay 300ms per ridurre re-render (lodash.debounce)
 - **Filter Persistence**: Filtri e sorting salvati in AsyncStorage (`@armadio_filters`, `@armadio_sort`)

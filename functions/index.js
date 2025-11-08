@@ -257,17 +257,30 @@ functions.http('analyzeImage', async (req, res) => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-    // Prompt ottimizzato per Armadio Digitale
-    const prompt = `Analizza questo capo d'abbigliamento e restituisci SOLO un oggetto JSON valido con questa struttura esatta:
+    // Prompt ottimizzato per Armadio Digitale - analisi dettagliata per Name e Brand
+    const prompt = `Sei un analista di capi d'abbigliamento esperto e preciso, specializzato nella moda, dallo streetwear al classico. 
+La tua missione è analizzare l'immagine allegata di un articolo e generare i metadati più specifici possibili per popolare un catalogo.
+
+Concentrati sull'identificazione del prodotto per compilare i campi 'name' e 'brand' in modo specifico.
+
+Analisi dell'immagine: Identifica marca, modello, colorway, materiali e caratteristiche distintive.
+
+Output Richiesto: Fornisci la tua analisi in un formato strutturato e pronto per l'uso, seguendo rigorosamente i campi sottostanti.
+
+Restituisci SOLO un oggetto JSON valido con questa struttura esatta:
 {
-  "category": "tipo di capo (es: T-Shirt, Jeans, Giacca, Scarpe, ecc.)",
-  "color": "colore principale (es: Nero, Bianco, Blu Navy, ecc.)",
-  "season": "stagione (Primavera/Estate/Autunno/Inverno/Tutte le stagioni)",
-  "brand": "marca se visibile (altrimenti 'Non specificato')",
-  "material": "materiale principale (es: Cotone, Denim, Pelle, ecc.)"
+  "name": "Nome del modello e colorway più specifico possibile (es: 'Air Jordan 4 Retro Bred Reimagined', 'Maglione Oversize a Coste', 'T-Shirt Logo Box Bianca')",
+  "category": "Categoria di abbigliamento (es: 'Scarpe Sportive/Sneakers', 'Maglione', 'T-Shirt')",
+  "color": "Colore primario con sfumature se rilevanti (es: 'Nero/Rosso', 'Blu Navy', 'Grigio Chiaro')",
+  "brand": "Marca e Sotto-marca se applicabile (es: 'Nike Jordan', 'Adidas Originals', 'Zara', 'H&M Divided'). Se non riconoscibile: 'Non specificato'",
+  "material": "Materiale principale visibile (es: 'Pelle', 'Cotone', 'Denim', 'Sintetico'). Se non chiaro: 'Non specificato'",
+  "season": "Stagione appropriata (Primavera/Estate/Autunno/Inverno/Tutte le stagioni)"
 }
 
-Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
+IMPORTANTE:
+- Il campo "name" deve essere il più specifico possibile: include modello, variante, colorway
+- Il campo "brand" deve includere sotto-marche (es: Nike Jordan, non solo Nike)
+- Rispondi SOLO con il JSON, nessun altro testo.`;
 
     // Chiamata a Gemini con timeout
     const geminiStartTime = Date.now();
@@ -306,7 +319,7 @@ Rispondi SOLO con il JSON, senza testo aggiuntivo.`;
     }
 
     // Validazione campi obbligatori
-    const requiredFields = ['category', 'color', 'season', 'brand', 'material'];
+    const requiredFields = ['name', 'category', 'color', 'season', 'brand', 'material'];
     const missingFields = requiredFields.filter(field => !parsedData[field]);
 
     if (missingFields.length > 0) {
