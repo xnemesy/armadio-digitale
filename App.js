@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { COLORS } from './src/theme/colors';
 
 const Stack = createNativeStackNavigator();
@@ -16,11 +17,12 @@ SplashScreen.preventAutoHideAsync().catch(console.warn);
 
 const AppNavigator = () => {
   const { user, initializing } = useAuth();
+  const { tokens, isLoading: themeLoading } = useTheme();
 
   // Hide splash screen when loading complete
   useEffect(() => {
     const hideSplash = async () => {
-      if (!initializing) {
+      if (!initializing && !themeLoading) {
         try {
           await SplashScreen.hideAsync();
         } catch (error) {
@@ -29,13 +31,13 @@ const AppNavigator = () => {
       }
     };
     hideSplash();
-  }, [initializing]);
+  }, [initializing, themeLoading]);
 
-  if (initializing) {
+  if (initializing || themeLoading) {
     return (
-      <View style={styles.fullScreenCenter}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Caricamento...</Text>
+      <View style={[styles.fullScreenCenter, { backgroundColor: tokens.colors.background }]}>
+        <ActivityIndicator size="large" color={tokens.colors.accent} />
+        <Text style={[styles.loadingText, { color: tokens.colors.textPrimary }]}>Caricamento...</Text>
       </View>
     );
   }
@@ -45,7 +47,7 @@ const AppNavigator = () => {
       {user ? (
         <MainTabNavigator user={user} />
       ) : (
-        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: COLORS.background } }}>
+        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: tokens.colors.background } }}>
           <Stack.Screen name="Auth" component={AuthScreen} />
         </Stack.Navigator>
       )}
@@ -55,12 +57,26 @@ const AppNavigator = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} translucent={false} />
+    <ThemeProvider>
+      <AuthProvider>
+        <ThemeStatusBar />
         <AppNavigator />
-      </SafeAreaView>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+};
+
+// Separate component to access theme context for StatusBar
+const ThemeStatusBar = () => {
+  const { tokens, isDark } = useTheme();
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.colors.background }]}>
+      <StatusBar 
+        barStyle={isDark ? 'light-content' : 'dark-content'} 
+        backgroundColor={tokens.colors.background} 
+        translucent={false} 
+      />
+    </SafeAreaView>
   );
 };
 

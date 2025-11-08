@@ -1,6 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
 import { Alert } from 'react-native';
+import { APP_ID } from '../config/appConfig';
 
 const AuthContext = createContext({});
 
@@ -177,6 +180,87 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Delete account with all user data (GDPR compliance)
+  const deleteAccount = async () => {
+    try {
+      setLoading(true);
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        return { success: false, error: 'Nessun utente connesso' };
+      }
+
+      const userId = currentUser.uid;
+      const userPath = `artifacts/${APP_ID}/users/${userId}`;
+
+      // Step 1: Delete all user items from Firestore
+      const itemsSnapshot = await firestore().collection(`${userPath}/items`).get();
+      const deletePromises = [];
+
+      // Delete each item and its associated images
+      for (const doc of itemsSnapshot.docs) {
+        const itemData = doc.data();
+        
+        // Delete images from Storage
+        if (itemData.thumbnailUrl) {
+          try {
+            const thumbnailRef = storage().refFromURL(itemData.thumbnailUrl);
+            deletePromises.push(thumbnailRef.delete().catch(console.error));
+          } catch (error) {
+            console.error('Error deleting thumbnail:', error);
+          }
+        }
+        
+        if (itemData.imageUrls && Array.isArray(itemData.imageUrls)) {
+          for (const imageUrl of itemData.imageUrls) {
+            try {
+              const imageRef = storage().refFromURL(imageUrl);
+              deletePromises.push(imageRef.delete().catch(console.error));
+            } catch (error) {
+              console.error('Error deleting image:', error);
+            }
+          }
+        }
+
+        // Delete Firestore document
+        deletePromises.push(doc.ref.delete());
+      }
+
+      // Wait for all deletions to complete
+      await Promise.all(deletePromises);
+
+      // Step 2: Delete user metadata document if exists
+      try {
+        await firestore().doc(userPath).delete();
+      } catch (error) {
+        console.error('Error deleting user metadata:', error);
+      }
+
+      // Step 3: Delete Firebase Auth account
+      await currentUser.delete();
+
+      return { 
+        success: true, 
+        message: 'Account eliminato con successo' 
+      };
+    } catch (error) {
+      console.error('Delete account error:', error);
+      let message = 'Errore durante l\'eliminazione dell\'account';
+      
+      switch (error.code) {
+        case 'auth/requires-recent-login':
+          message = 'Per sicurezza, devi effettuare nuovamente il login prima di eliminare l\'account';
+          break;
+        case 'auth/network-request-failed':
+          message = 'Errore di rete. Controlla la connessione';
+          break;
+      }
+      
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -187,6 +271,7 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     updateUserProfile,
     resendEmailVerification,
+    deleteAccount,
     isAuthenticated: !!user,
   };
 

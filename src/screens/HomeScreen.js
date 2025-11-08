@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput, Modal, Animated } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
 import { Picker } from '@react-native-picker/picker';
+import { Search, X } from 'lucide-react-native';
 import { ItemCard } from '../components';
 import { PressableScale } from '../components';
 import { COLORS } from '../theme/colors';
@@ -23,7 +24,9 @@ const HomeScreen = ({ navigation, route }) => {
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
     const [brands, setBrands] = useState([]);
+    const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
     const textInputRef = useRef(null);
+    const modalAnimation = useRef(new Animated.Value(0)).current;
 
     // Debounced text search (300ms delay)
     const debouncedSetText = useCallback(
@@ -143,6 +146,24 @@ const HomeScreen = ({ navigation, route }) => {
         }
     };
 
+    const openSearchModal = () => {
+        setIsSearchModalVisible(true);
+        Animated.spring(modalAnimation, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 8,
+        }).start();
+    };
+
+    const closeSearchModal = () => {
+        Animated.timing(modalAnimation, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => setIsSearchModalVisible(false));
+    };
+
     const renderItem = ({ item }) => (
         <ItemCard item={item} onPress={() => navigation.navigate('Detail', { item })} />
     );
@@ -158,6 +179,7 @@ const HomeScreen = ({ navigation, route }) => {
 
     return (
         <View style={styles.container}>
+            {/* Header compatto senza ricerca */}
             <View style={styles.header}> 
                 <Text style={styles.headerTitle}>Il Mio Armadio</Text>
                 <View style={styles.headerRow}>
@@ -170,56 +192,22 @@ const HomeScreen = ({ navigation, route }) => {
                             style={styles.sortPicker}
                             dropdownIconColor={COLORS.textSecondary}
                         >
-                            <Picker.Item label="Data (recente)" value="date" color={COLORS.textPrimary} />
-                            <Picker.Item label="Nome (A-Z)" value="name" color={COLORS.textPrimary} />
-                            <Picker.Item label="Brand (A-Z)" value="brand" color={COLORS.textPrimary} />
+                            <Picker.Item label="Data" value="date" color={COLORS.textPrimary} />
+                            <Picker.Item label="Nome" value="name" color={COLORS.textPrimary} />
+                            <Picker.Item label="Brand" value="brand" color={COLORS.textPrimary} />
                         </Picker>
                     </View>
                 </View>
             </View>
-            {/* Search */}
-            <View style={styles.searchRow}>
-                <TextInput
-                    ref={textInputRef}
-                    style={styles.searchInput}
-                    placeholder="Cerca nome o brand"
-                    placeholderTextColor={COLORS.textSecondary}
-                    value={filter.text}
-                    onChangeText={handleTextChange}
-                />
-                <TouchableOpacity style={styles.clearButton} onPress={clearFilters} activeOpacity={0.8}>
-                    <Text style={styles.clearText}>Reset</Text>
-                </TouchableOpacity>
-            </View>
-            {/* Simple Pills for category/color/brand */}
-            <View style={styles.pillsContainer}>
-                {[{ key: 'category', data: categories, label: 'Categoria' }, { key: 'color', data: colors, label: 'Colore' }, { key: 'brand', data: brands, label: 'Brand' }].map(group => (
-                    <View key={group.key} style={styles.pillGroup}>
-                        <Text style={styles.pillGroupLabel}>{group.label}</Text>
-                        <View style={styles.pillsRow}>
-                            <FilterPill
-                                active={!filter[group.key]}
-                                label="Tutti"
-                                onPress={() => setFilter(prev => ({ ...prev, [group.key]: '' }))}
-                            />
-                            {group.data.map(val => (
-                                <FilterPill
-                                    key={val}
-                                    active={filter[group.key] === val}
-                                    label={val}
-                                    onPress={() => setFilter(prev => ({ ...prev, [group.key]: prev[group.key] === val ? '' : val }))}
-                                />
-                            ))}
-                        </View>
-                    </View>
-                ))}
-            </View>
-            {/* Grid */}
+
+            {/* Grid - Più spazio per le foto! */}
             {filteredItems.length === 0 ? (
                 <View style={styles.emptyState}> 
                     <Text style={styles.emptyIcon}>👚</Text>
                     <Text style={styles.emptyTitle}>Nessun capo trovato</Text>
-                    <Text style={styles.emptyText}>Modifica i filtri o aggiungi nuovi capi.</Text>
+                    <Text style={styles.emptyText}>
+                        {items.length === 0 ? 'Aggiungi il tuo primo capo!' : 'Modifica i filtri di ricerca.'}
+                    </Text>
                 </View>
             ) : (
                 <FlatList
@@ -232,6 +220,120 @@ const HomeScreen = ({ navigation, route }) => {
                     showsVerticalScrollIndicator={false}
                 />
             )}
+
+            {/* FAB Search Button */}
+            <TouchableOpacity 
+                style={styles.fabButton}
+                onPress={openSearchModal}
+                activeOpacity={0.9}
+            >
+                <Search size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {/* Search Modal Overlay */}
+            <Modal
+                visible={isSearchModalVisible}
+                transparent
+                animationType="none"
+                onRequestClose={closeSearchModal}
+            >
+                <Animated.View 
+                    style={[
+                        styles.modalOverlay,
+                        {
+                            opacity: modalAnimation,
+                        }
+                    ]}
+                >
+                    <TouchableOpacity 
+                        style={styles.modalBackdrop}
+                        activeOpacity={1}
+                        onPress={closeSearchModal}
+                    />
+                    
+                    <Animated.View 
+                        style={[
+                            styles.modalContent,
+                            {
+                                transform: [{
+                                    translateY: modalAnimation.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [-300, 0],
+                                    })
+                                }],
+                            }
+                        ]}
+                    >
+                        {/* Modal Header */}
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Ricerca e Filtri</Text>
+                            <TouchableOpacity onPress={closeSearchModal} style={styles.closeButton}>
+                                <X size={24} color={COLORS.textPrimary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Search Input */}
+                        <View style={styles.searchRow}>
+                            <TextInput
+                                ref={textInputRef}
+                                style={styles.searchInput}
+                                placeholder="Cerca nome o brand"
+                                placeholderTextColor={COLORS.textSecondary}
+                                value={filter.text}
+                                onChangeText={handleTextChange}
+                                autoFocus
+                            />
+                            <TouchableOpacity style={styles.clearButton} onPress={clearFilters} activeOpacity={0.8}>
+                                <Text style={styles.clearText}>Reset</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Filters */}
+                        <View style={styles.pillsContainer}>
+                            {[
+                                { key: 'category', data: categories, label: 'Categoria' }, 
+                                { key: 'color', data: colors, label: 'Colore' }, 
+                                { key: 'brand', data: brands, label: 'Brand' }
+                            ].map(group => (
+                                <View key={group.key} style={styles.pillGroup}>
+                                    <Text style={styles.pillGroupLabel}>{group.label}</Text>
+                                    <View style={styles.pillsRow}>
+                                        <FilterPill
+                                            active={!filter[group.key]}
+                                            label="Tutti"
+                                            onPress={() => setFilter(prev => ({ ...prev, [group.key]: '' }))}
+                                        />
+                                        {group.data.map(val => (
+                                            <FilterPill
+                                                key={val}
+                                                active={filter[group.key] === val}
+                                                label={val}
+                                                onPress={() => setFilter(prev => ({ 
+                                                    ...prev, 
+                                                    [group.key]: prev[group.key] === val ? '' : val 
+                                                }))}
+                                            />
+                                        ))}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+
+                        {/* Results count */}
+                        <View style={styles.modalFooter}>
+                            <Text style={styles.resultsText}>
+                                {filteredItems.length} risultat{filteredItems.length !== 1 ? 'i' : 'o'}
+                            </Text>
+                            <TouchableOpacity 
+                                style={styles.applyButton}
+                                onPress={closeSearchModal}
+                            >
+                                <Text style={styles.applyButtonText}>Applica</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </Animated.View>
+                </Animated.View>
+            </Modal>
         </View>
     );
 };
@@ -248,31 +350,182 @@ const FilterPill = ({ label, active, onPress }) => (
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.background, paddingHorizontal: 0 },
-    header: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 12, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+    header: { 
+        paddingHorizontal: 20, 
+        paddingTop: 50, 
+        paddingBottom: 12, 
+        backgroundColor: COLORS.surface, 
+        borderBottomWidth: 1, 
+        borderBottomColor: COLORS.border 
+    },
     headerTitle: { fontSize: 24, fontWeight: '700', color: COLORS.textPrimary },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+    headerRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'space-between', 
+        marginTop: 8 
+    },
     countText: { fontSize: 12, color: COLORS.textSecondary },
     sortContainer: { flexDirection: 'row', alignItems: 'center' },
-    sortLabel: { fontSize: 11, color: COLORS.textSecondary, marginRight: 4, fontWeight: '600' },
-    sortPicker: { width: 140, height: 36, color: COLORS.textPrimary, backgroundColor: COLORS.background, borderRadius: 6 },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
+    sortLabel: { 
+        fontSize: 11, 
+        color: COLORS.textSecondary, 
+        marginRight: 4, 
+        fontWeight: '600' 
+    },
+    sortPicker: { 
+        width: 110, 
+        height: 36, 
+        color: COLORS.textPrimary, 
+        backgroundColor: COLORS.background, 
+        borderRadius: 6 
+    },
+    loadingContainer: { 
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        backgroundColor: COLORS.background 
+    },
     loadingText: { marginTop: 10, color: COLORS.textSecondary },
-    searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, gap: 12 },
-    searchInput: { flex: 1, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, color: COLORS.textPrimary, paddingHorizontal: 14, height: 44 },
-    clearButton: { paddingHorizontal: 14, height: 44, borderRadius: 10, backgroundColor: COLORS.surfaceLight, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+    
+    // FAB Button
+    fabButton: {
+        position: 'absolute',
+        bottom: 90,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: COLORS.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+    },
+    
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    },
+    modalBackdrop: {
+        flex: 1,
+    },
+    modalContent: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: COLORS.surface,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        paddingBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 50,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.textPrimary,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    searchRow: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        paddingHorizontal: 20, 
+        paddingTop: 16, 
+        gap: 12 
+    },
+    searchInput: { 
+        flex: 1, 
+        backgroundColor: COLORS.background, 
+        borderWidth: 1, 
+        borderColor: COLORS.border, 
+        borderRadius: 10, 
+        color: COLORS.textPrimary, 
+        paddingHorizontal: 14, 
+        height: 44 
+    },
+    clearButton: { 
+        paddingHorizontal: 14, 
+        height: 44, 
+        borderRadius: 10, 
+        backgroundColor: COLORS.surfaceLight, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        borderWidth: 1, 
+        borderColor: COLORS.border 
+    },
     clearText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: 13 },
-    pillsContainer: { paddingHorizontal: 16, paddingTop: 12 },
+    pillsContainer: { paddingHorizontal: 20, paddingTop: 16 },
     pillGroup: { marginBottom: 12 },
-    pillGroupLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+    pillGroupLabel: { 
+        fontSize: 11, 
+        fontWeight: '600', 
+        color: COLORS.textSecondary, 
+        marginBottom: 8, 
+        textTransform: 'uppercase', 
+        letterSpacing: 0.5 
+    },
     pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.background },
+    pill: { 
+        paddingHorizontal: 12, 
+        paddingVertical: 6, 
+        borderRadius: 50, 
+        borderWidth: 1, 
+        borderColor: COLORS.border, 
+        backgroundColor: COLORS.background 
+    },
     pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
     pillText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
     pillTextActive: { color: '#FFFFFF' },
+    modalFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        marginTop: 8,
+    },
+    resultsText: {
+        fontSize: 13,
+        color: COLORS.textSecondary,
+        fontWeight: '600',
+    },
+    applyButton: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        borderRadius: 8,
+    },
+    applyButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    
     emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyIcon: { fontSize: 48, marginBottom: 15 },
     emptyTitle: { fontSize: 18, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 6 },
-    emptyText: { fontSize: 14, color: COLORS.textSecondary },
+    emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
 });
 
 export default HomeScreen;
