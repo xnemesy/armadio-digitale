@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
@@ -36,6 +35,7 @@ const AppNavigator = () => {
   if (initializing || themeLoading) {
     return (
       <View style={[styles.fullScreenCenter, { backgroundColor: tokens.colors.background }]}>
+        <StatusBar barStyle={tokens.isDark ? 'light-content' : 'dark-content'} backgroundColor={tokens.colors.background} />
         <ActivityIndicator size="large" color={tokens.colors.accent} />
         <Text style={[styles.loadingText, { color: tokens.colors.textPrimary }]}>Caricamento...</Text>
       </View>
@@ -44,6 +44,7 @@ const AppNavigator = () => {
 
   return (
     <NavigationContainer>
+      <StatusBar barStyle={tokens.isDark ? 'light-content' : 'dark-content'} backgroundColor={tokens.colors.background} />
       {user ? (
         <MainTabNavigator user={user} />
       ) : (
@@ -59,29 +60,13 @@ const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ThemeStatusBar />
         <AppNavigator />
       </AuthProvider>
     </ThemeProvider>
   );
 };
 
-// Separate component to access theme context for StatusBar
-const ThemeStatusBar = () => {
-  const { tokens, isDark } = useTheme();
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.colors.background }]}>
-      <StatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content'} 
-        backgroundColor={tokens.colors.background} 
-        translucent={false} 
-      />
-    </SafeAreaView>
-  );
-};
-
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.background },
   fullScreenCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background },
   loadingText: { marginTop: 10, color: COLORS.textPrimary }
 });

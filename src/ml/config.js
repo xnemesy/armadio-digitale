@@ -10,5 +10,6 @@ export const ML_CONFIG = {
     std: [0.229, 0.224, 0.225],
   },
   // Model asset relative path (place the .pte file here)
-  modelAsset: require('../../assets/models/mobilenet_v3_clothes_int8.pte'),
+  // COMMENTED OUT: model file not present, ExecuTorch will fallback to Gemini
+  modelAsset: null, // require('../../assets/models/mobilenet_v3_clothes_int8.pte'),
 };
