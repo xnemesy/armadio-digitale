@@ -3,11 +3,12 @@ import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarChart3 } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
-import { COLORS } from '../theme/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
 const StatsScreen = ({ route }) => {
   const { user } = route.params || { user: { uid: 'test-user' } };
+  const { tokens } = useTheme();
   const [stats, setStats] = useState({ totalItems: 0, byCategory: {}, byColor: {}, byBrand: {}, bySize: {} });
   const [loading, setLoading] = useState(true);
 
@@ -49,8 +50,8 @@ const StatsScreen = ({ route }) => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
-          <View style={styles.header}><BarChart3 size={24} color={COLORS.primary} strokeWidth={2.5} /><Text style={styles.headerTitle}>Statistiche</Text></View>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={COLORS.primary} /></View>
+          <View style={styles.header}><BarChart3 size={24} color={tokens.colors.primary} strokeWidth={2.5} /><Text style={styles.headerTitle}>Statistiche</Text></View>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={tokens.colors.primary} /></View>
         </View>
       </SafeAreaView>
     );
@@ -59,7 +60,7 @@ const StatsScreen = ({ route }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.header}><BarChart3 size={24} color={COLORS.primary} strokeWidth={2.5} /><Text style={styles.headerTitle}>Statistiche</Text></View>
+        <View style={styles.header}><BarChart3 size={24} color={tokens.colors.primary} strokeWidth={2.5} /><Text style={styles.headerTitle}>Statistiche</Text></View>
         <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           <View style={styles.totalCard}><Text style={styles.totalLabel}>Totale Capi</Text><Text style={styles.totalValue}>{stats.totalItems}</Text></View>
           {renderSection('Per Categoria', stats.byCategory)}
@@ -73,19 +74,20 @@ const StatsScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.background },
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
+  safeArea: { flex: 1, backgroundColor: tokens.colors.background },
+  container: { flex: 1, backgroundColor: tokens.colors.background },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
   scrollContent: { flex: 1, paddingHorizontal: 20 },
-  totalCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: COLORS.border },
-  totalLabel: { fontSize: 14, fontWeight: '600', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  totalValue: { fontSize: 48, fontWeight: '800', color: COLORS.primary },
-  section: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1, borderColor: COLORS.border },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 16 },
-  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  statLabel: { fontSize: 15, color: COLORS.textSecondary, fontWeight: '500', flex: 1 },
-  statValue: { fontSize: 16, fontWeight: '700', color: COLORS.primary, minWidth: 40, textAlign: 'right' },
+  totalCard: { backgroundColor: tokens.colors.surface, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: tokens.colors.border },
+  totalLabel: { fontSize: 14, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
+  totalValue: { fontSize: 48, fontWeight: '800', color: tokens.colors.primary },
+  section: { backgroundColor: tokens.colors.surface, borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1, borderColor: tokens.colors.border },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.textPrimary, marginBottom: 16 },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.colors.border },
+  statLabel: { fontSize: 15, color: tokens.colors.textSecondary, fontWeight: '500', flex: 1 },
+  statValue: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary, minWidth: 40, textAlign: 'right' },
 });
 
 export default StatsScreen;
+

@@ -4,10 +4,11 @@ import firestore from '@react-native-firebase/firestore';
 import { ChevronLeft, Zap } from 'lucide-react-native';
 import { getOutfitSuggestion } from '../lib/ai';
 import { APP_ID } from '../config/appConfig';
-import { COLORS } from '../theme/colors';
+import { useTheme } from '../contexts/ThemeContext';
 
 const OutfitBuilderScreen = ({ navigation, route }) => {
     const { user } = route.params || { user: { uid: 'test-user' } };
+    const { tokens } = useTheme();
     const [request, setRequest] = useState('');
     const [suggestion, setSuggestion] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -41,16 +42,16 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
+                    <ChevronLeft size={24} color={tokens.colors.primary} strokeWidth={2.5} />
                 </TouchableOpacity>
-                <Text style={styles.title}><Zap size={20} color={COLORS.primary} /> Outfit Builder AI</Text>
+                <Text style={styles.title}><Zap size={20} color={tokens.colors.primary} /> Outfit Builder AI</Text>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
                 <View style={styles.inputArea}>
                     <TextInput
                         style={styles.textarea}
                         placeholder="Es: Outfit casual per un aperitivo..."
-                        placeholderTextColor={COLORS.textSecondary}
+                        placeholderTextColor={tokens.colors.textSecondary}
                         value={request}
                         onChangeText={setRequest}
                         multiline
@@ -74,7 +75,7 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 )}
                 {loadingItems ? (
                     <View style={styles.inventoryPreview}>
-                        <ActivityIndicator size="small" color={COLORS.primary} />
+                        <ActivityIndicator size="small" color={tokens.colors.primary} />
                         <Text style={styles.note}>Caricamento capi...</Text>
                     </View>
                 ) : (
@@ -95,21 +96,22 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface },
+    container: { flex: 1, backgroundColor: tokens.colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
     backButton: { paddingRight: 12, paddingVertical: 4 },
-    title: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
-    inputArea: { margin: 16, padding: 15, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-    textarea: { backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, color: COLORS.textPrimary, padding: 12, minHeight: 100, textAlignVertical: 'top' },
-    generateButton: { marginTop: 12, backgroundColor: COLORS.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-    resultBox: { margin: 16, padding: 20, borderRadius: 12, backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.primary },
-    resultTitle: { fontSize: 18, fontWeight: '700', color: COLORS.primary, marginBottom: 8 },
-    resultText: { color: COLORS.textPrimary, fontSize: 15, lineHeight: 22 },
-    inventoryPreview: { marginHorizontal: 16, padding: 15, backgroundColor: COLORS.surface, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border },
-    inventoryTitle: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8 },
+    title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
+    inputArea: { margin: 16, padding: 15, backgroundColor: tokens.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: tokens.colors.border },
+    textarea: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, borderRadius: 8, color: tokens.colors.textPrimary, padding: 12, minHeight: 100, textAlignVertical: 'top' },
+    generateButton: { marginTop: 12, backgroundColor: tokens.colors.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+    resultBox: { margin: 16, padding: 20, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.primary },
+    resultTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.primary, marginBottom: 8 },
+    resultText: { color: tokens.colors.textPrimary, fontSize: 15, lineHeight: 22 },
+    inventoryPreview: { marginHorizontal: 16, padding: 15, backgroundColor: tokens.colors.surface, borderRadius: 8, borderWidth: 1, borderColor: tokens.colors.border },
+    inventoryTitle: { fontSize: 15, fontWeight: '600', color: tokens.colors.textSecondary, marginBottom: 8 },
     itemList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
     itemTag: { backgroundColor: '#D1D5DB', color: '#374151', padding: 5, borderRadius: 5, fontSize: 12 },
     note: { fontSize: 12, color: '#6B7280', fontStyle: 'italic' },
 });
 
 export default OutfitBuilderScreen;
+

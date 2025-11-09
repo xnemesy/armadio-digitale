@@ -7,7 +7,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Search, X } from 'lucide-react-native';
 import { ItemCard } from '../components';
 import { PressableScale } from '../components';
-import { COLORS } from '../theme/colors';
+import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
 const FILTER_STORAGE_KEY = '@armadio_filters';
@@ -16,6 +16,7 @@ const SORT_STORAGE_KEY = '@armadio_sort';
 // Enhanced HomeScreen with filters, debounced search, sorting, and persistence
 const HomeScreen = ({ navigation, route }) => {
     const { user } = route.params || { user: { uid: 'test-user' } };
+    const { tokens } = useTheme();
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
     const [filter, setFilter] = useState({ text: '', category: '', color: '', brand: '' });
@@ -170,31 +171,31 @@ const HomeScreen = ({ navigation, route }) => {
 
     if (loadingItems) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Caricamento...</Text>
+            <View style={[styles.loadingContainer, { backgroundColor: tokens.colors.background }]}>
+                <ActivityIndicator size="large" color={tokens.colors.primary} />
+                <Text style={[styles.loadingText, { color: tokens.colors.textSecondary }]}>Caricamento...</Text>
             </View>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: tokens.colors.background }]}>
             {/* Header compatto senza ricerca */}
-            <View style={styles.header}> 
-                <Text style={styles.headerTitle}>Il Mio Armadio</Text>
+            <View style={[styles.header, { backgroundColor: tokens.colors.surface, borderBottomColor: tokens.colors.border }]}> 
+                <Text style={[styles.headerTitle, { color: tokens.colors.textPrimary }]}>Il Mio Armadio</Text>
                 <View style={styles.headerRow}>
-                    <Text style={styles.countText}>{filteredItems.length} / {items.length} capi</Text>
+                    <Text style={[styles.countText, { color: tokens.colors.textSecondary }]}>{filteredItems.length} / {items.length} capi</Text>
                     <View style={styles.sortContainer}>
-                        <Text style={styles.sortLabel}>Ordina:</Text>
+                        <Text style={[styles.sortLabel, { color: tokens.colors.textSecondary }]}>Ordina:</Text>
                         <Picker
                             selectedValue={sortBy}
                             onValueChange={setSortBy}
-                            style={styles.sortPicker}
-                            dropdownIconColor={COLORS.textSecondary}
+                            style={[styles.sortPicker, { color: tokens.colors.textPrimary, backgroundColor: tokens.colors.background }]}
+                            dropdownIconColor={tokens.colors.textSecondary}
                         >
-                            <Picker.Item label="Data" value="date" color={COLORS.textPrimary} />
-                            <Picker.Item label="Nome" value="name" color={COLORS.textPrimary} />
-                            <Picker.Item label="Brand" value="brand" color={COLORS.textPrimary} />
+                            <Picker.Item label="Data" value="date" color={tokens.colors.textPrimary} />
+                            <Picker.Item label="Nome" value="name" color={tokens.colors.textPrimary} />
+                            <Picker.Item label="Brand" value="brand" color={tokens.colors.textPrimary} />
                         </Picker>
                     </View>
                 </View>
@@ -204,8 +205,8 @@ const HomeScreen = ({ navigation, route }) => {
             {filteredItems.length === 0 ? (
                 <View style={styles.emptyState}> 
                     <Text style={styles.emptyIcon}>👚</Text>
-                    <Text style={styles.emptyTitle}>Nessun capo trovato</Text>
-                    <Text style={styles.emptyText}>
+                    <Text style={[styles.emptyTitle, { color: tokens.colors.textPrimary }]}>Nessun capo trovato</Text>
+                    <Text style={[styles.emptyText, { color: tokens.colors.textSecondary }]}>
                         {items.length === 0 ? 'Aggiungi il tuo primo capo!' : 'Modifica i filtri di ricerca.'}
                     </Text>
                 </View>
@@ -216,14 +217,14 @@ const HomeScreen = ({ navigation, route }) => {
                     keyExtractor={i => i.id}
                     numColumns={2}
                     columnWrapperStyle={{ paddingHorizontal: 8, justifyContent: 'space-between' }}
-                    contentContainerStyle={{ paddingBottom: 140, paddingTop: 8 }}
+                    contentContainerStyle={{ paddingBottom: 180, paddingTop: 8 }}
                     showsVerticalScrollIndicator={false}
                 />
             )}
 
             {/* FAB Search Button */}
             <TouchableOpacity 
-                style={styles.fabButton}
+                style={[styles.fabButton, { backgroundColor: tokens.colors.primary }]}
                 onPress={openSearchModal}
                 activeOpacity={0.9}
             >
@@ -254,6 +255,7 @@ const HomeScreen = ({ navigation, route }) => {
                     <Animated.View 
                         style={[
                             styles.modalContent,
+                            { backgroundColor: tokens.colors.surface },
                             {
                                 transform: [{
                                     translateY: modalAnimation.interpolate({
@@ -265,10 +267,10 @@ const HomeScreen = ({ navigation, route }) => {
                         ]}
                     >
                         {/* Modal Header */}
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Ricerca e Filtri</Text>
+                        <View style={[styles.modalHeader, { borderBottomColor: tokens.colors.border }]}>
+                            <Text style={[styles.modalTitle, { color: tokens.colors.textPrimary }]}>Ricerca e Filtri</Text>
                             <TouchableOpacity onPress={closeSearchModal} style={styles.closeButton}>
-                                <X size={24} color={COLORS.textPrimary} />
+                                <X size={24} color={tokens.colors.textPrimary} />
                             </TouchableOpacity>
                         </View>
 
@@ -276,15 +278,26 @@ const HomeScreen = ({ navigation, route }) => {
                         <View style={styles.searchRow}>
                             <TextInput
                                 ref={textInputRef}
-                                style={styles.searchInput}
+                                style={[styles.searchInput, { 
+                                    backgroundColor: tokens.colors.background, 
+                                    borderColor: tokens.colors.border, 
+                                    color: tokens.colors.textPrimary 
+                                }]}
                                 placeholder="Cerca nome o brand"
-                                placeholderTextColor={COLORS.textSecondary}
+                                placeholderTextColor={tokens.colors.textSecondary}
                                 value={filter.text}
                                 onChangeText={handleTextChange}
                                 autoFocus
                             />
-                            <TouchableOpacity style={styles.clearButton} onPress={clearFilters} activeOpacity={0.8}>
-                                <Text style={styles.clearText}>Reset</Text>
+                            <TouchableOpacity 
+                                style={[styles.clearButton, { 
+                                    backgroundColor: tokens.colors.surfaceLight, 
+                                    borderColor: tokens.colors.border 
+                                }]} 
+                                onPress={clearFilters} 
+                                activeOpacity={0.8}
+                            >
+                                <Text style={[styles.clearText, { color: tokens.colors.textSecondary }]}>Reset</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -296,12 +309,13 @@ const HomeScreen = ({ navigation, route }) => {
                                 { key: 'brand', data: brands, label: 'Brand' }
                             ].map(group => (
                                 <View key={group.key} style={styles.pillGroup}>
-                                    <Text style={styles.pillGroupLabel}>{group.label}</Text>
+                                    <Text style={[styles.pillGroupLabel, { color: tokens.colors.textSecondary }]}>{group.label}</Text>
                                     <View style={styles.pillsRow}>
                                         <FilterPill
                                             active={!filter[group.key]}
                                             label="Tutti"
                                             onPress={() => setFilter(prev => ({ ...prev, [group.key]: '' }))}
+                                            tokens={tokens}
                                         />
                                         {group.data.map(val => (
                                             <FilterPill
@@ -312,6 +326,7 @@ const HomeScreen = ({ navigation, route }) => {
                                                     ...prev, 
                                                     [group.key]: prev[group.key] === val ? '' : val 
                                                 }))}
+                                                tokens={tokens}
                                             />
                                         ))}
                                     </View>
@@ -321,11 +336,11 @@ const HomeScreen = ({ navigation, route }) => {
 
                         {/* Results count */}
                         <View style={styles.modalFooter}>
-                            <Text style={styles.resultsText}>
+                            <Text style={[styles.resultsText, { color: tokens.colors.textSecondary }]}>
                                 {filteredItems.length} risultat{filteredItems.length !== 1 ? 'i' : 'o'}
                             </Text>
                             <TouchableOpacity 
-                                style={styles.applyButton}
+                                style={[styles.applyButton, { backgroundColor: tokens.colors.primary }]}
                                 onPress={closeSearchModal}
                             >
                                 <Text style={styles.applyButtonText}>Applica</Text>
@@ -338,55 +353,58 @@ const HomeScreen = ({ navigation, route }) => {
     );
 };
 
-const FilterPill = ({ label, active, onPress }) => (
+const FilterPill = ({ label, active, onPress, tokens }) => (
     <PressableScale
         onPress={onPress}
-        style={[styles.pill, active && styles.pillActive]}
+        style={[
+            styles.pill, 
+            { 
+                borderColor: active ? tokens.colors.primary : tokens.colors.border,
+                backgroundColor: active ? tokens.colors.primary : tokens.colors.background
+            }
+        ]}
         activeScale={0.92}
     >
-        <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+        <Text style={[
+            styles.pillText, 
+            { color: active ? '#FFFFFF' : tokens.colors.textSecondary }
+        ]}>{label}</Text>
     </PressableScale>
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background, paddingHorizontal: 0 },
+    container: { flex: 1, paddingHorizontal: 0 },
     header: { 
         paddingHorizontal: 20, 
         paddingTop: 50, 
         paddingBottom: 12, 
-        backgroundColor: COLORS.surface, 
-        borderBottomWidth: 1, 
-        borderBottomColor: COLORS.border 
+        borderBottomWidth: 1 
     },
-    headerTitle: { fontSize: 24, fontWeight: '700', color: COLORS.textPrimary },
+    headerTitle: { fontSize: 24, fontWeight: '700' },
     headerRow: { 
         flexDirection: 'row', 
         alignItems: 'center', 
         justifyContent: 'space-between', 
         marginTop: 8 
     },
-    countText: { fontSize: 12, color: COLORS.textSecondary },
+    countText: { fontSize: 12 },
     sortContainer: { flexDirection: 'row', alignItems: 'center' },
     sortLabel: { 
         fontSize: 11, 
-        color: COLORS.textSecondary, 
         marginRight: 4, 
         fontWeight: '600' 
     },
     sortPicker: { 
         width: 110, 
         height: 36, 
-        color: COLORS.textPrimary, 
-        backgroundColor: COLORS.background, 
         borderRadius: 6 
     },
     loadingContainer: { 
         flex: 1, 
         justifyContent: 'center', 
-        alignItems: 'center', 
-        backgroundColor: COLORS.background 
+        alignItems: 'center'
     },
-    loadingText: { marginTop: 10, color: COLORS.textSecondary },
+    loadingText: { marginTop: 10 },
     
     // FAB Button
     fabButton: {
@@ -396,7 +414,6 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: COLORS.primary,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 6,
@@ -419,7 +436,6 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        backgroundColor: COLORS.surface,
         borderBottomLeftRadius: 24,
         borderBottomRightRadius: 24,
         paddingBottom: 20,
@@ -437,12 +453,10 @@ const styles = StyleSheet.create({
         paddingTop: 50,
         paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
     },
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: COLORS.textPrimary,
     },
     closeButton: {
         padding: 4,
@@ -456,11 +470,8 @@ const styles = StyleSheet.create({
     },
     searchInput: { 
         flex: 1, 
-        backgroundColor: COLORS.background, 
         borderWidth: 1, 
-        borderColor: COLORS.border, 
         borderRadius: 10, 
-        color: COLORS.textPrimary, 
         paddingHorizontal: 14, 
         height: 44 
     },
@@ -468,19 +479,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14, 
         height: 44, 
         borderRadius: 10, 
-        backgroundColor: COLORS.surfaceLight, 
         justifyContent: 'center', 
         alignItems: 'center', 
-        borderWidth: 1, 
-        borderColor: COLORS.border 
+        borderWidth: 1 
     },
-    clearText: { color: COLORS.textSecondary, fontWeight: '600', fontSize: 13 },
+    clearText: { fontWeight: '600', fontSize: 13 },
     pillsContainer: { paddingHorizontal: 20, paddingTop: 16 },
     pillGroup: { marginBottom: 12 },
     pillGroupLabel: { 
         fontSize: 11, 
         fontWeight: '600', 
-        color: COLORS.textSecondary, 
         marginBottom: 8, 
         textTransform: 'uppercase', 
         letterSpacing: 0.5 
@@ -490,13 +498,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12, 
         paddingVertical: 6, 
         borderRadius: 50, 
-        borderWidth: 1, 
-        borderColor: COLORS.border, 
-        backgroundColor: COLORS.background 
+        borderWidth: 1
     },
-    pillActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-    pillText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '500' },
-    pillTextActive: { color: '#FFFFFF' },
+    pillText: { fontSize: 12, fontWeight: '500' },
     modalFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -507,11 +511,9 @@ const styles = StyleSheet.create({
     },
     resultsText: {
         fontSize: 13,
-        color: COLORS.textSecondary,
         fontWeight: '600',
     },
     applyButton: {
-        backgroundColor: COLORS.primary,
         paddingHorizontal: 24,
         paddingVertical: 10,
         borderRadius: 8,
@@ -524,8 +526,8 @@ const styles = StyleSheet.create({
     
     emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
     emptyIcon: { fontSize: 48, marginBottom: 15 },
-    emptyTitle: { fontSize: 18, fontWeight: '600', color: COLORS.textPrimary, marginBottom: 6 },
-    emptyText: { fontSize: 14, color: COLORS.textSecondary, textAlign: 'center' },
+    emptyTitle: { fontSize: 18, fontWeight: '600', marginBottom: 6 },
+    emptyText: { fontSize: 14, textAlign: 'center' },
 });
 
 export default HomeScreen;

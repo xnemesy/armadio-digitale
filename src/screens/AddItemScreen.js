@@ -6,10 +6,11 @@ import storage from '@react-native-firebase/storage';
 import firestore from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
 import { APP_ID } from '../config/appConfig';
-import { COLORS } from '../theme/colors';
+import { useTheme } from '../contexts/ThemeContext';
 
 const AddItemScreen = ({ navigation, route }) => {
     const { user } = route.params || { user: { uid: 'test-user' } };
+    const { tokens } = useTheme();
     const [imageBase64, setImageBase64] = useState(null);
     const [imageLocalUri, setImageLocalUri] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -128,13 +129,13 @@ const AddItemScreen = ({ navigation, route }) => {
             <View style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ChevronLeft size={24} color={COLORS.primary} strokeWidth={2.5} />
+                        <ChevronLeft size={24} color={tokens.colors.primary} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Aggiungi Nuovo Capo</Text>
                 </View>
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 120 }}>
                     <Text style={styles.statusText}>
-                        {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginRight: 8 }} />}
+                        {loading && <ActivityIndicator size="small" color={tokens.colors.primary} style={{ marginRight: 8 }} />}
                         {status}
                     </Text>
                     {imagePreview ? (
@@ -143,17 +144,17 @@ const AddItemScreen = ({ navigation, route }) => {
                         </View>
                     ) : (
                         <View style={styles.placeholder}>
-                            <Text style={{ fontSize: 48, color: COLORS.textSecondary }}>📷</Text>
-                            <Text style={{ color: COLORS.textSecondary, marginTop: 8 }}>Scegli come aggiungere la foto</Text>
+                            <Text style={{ fontSize: 48, color: tokens.colors.textSecondary }}>📷</Text>
+                            <Text style={{ color: tokens.colors.textSecondary, marginTop: 8 }}>Scegli come aggiungere la foto</Text>
                         </View>
                     )}
                     <View style={styles.buttonRow}>
                         <TouchableOpacity onPress={handleTakePhoto} style={[styles.actionButton, styles.cameraButton]} disabled={loading}>
-                            <Camera size={32} color={COLORS.primary} strokeWidth={2} />
+                            <Camera size={32} color={tokens.colors.primary} strokeWidth={2} />
                             <Text style={styles.buttonText}>Scatta Foto</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={handleImageChange} style={[styles.actionButton, styles.galleryButton]} disabled={loading}>
-                            <ImageIcon size={32} color={COLORS.primaryLight} strokeWidth={2} />
+                            <ImageIcon size={32} color={tokens.colors.primaryLight} strokeWidth={2} />
                             <Text style={styles.buttonText}>Dalla Galleria</Text>
                         </TouchableOpacity>
                     </View>
@@ -173,7 +174,7 @@ const AddItemScreen = ({ navigation, route }) => {
                                     onChangeText={t => setMetadata(prev => ({ ...prev, [key]: t }))}
                                     style={styles.input}
                                     placeholder={key}
-                                    placeholderTextColor={COLORS.textMuted}
+                                    placeholderTextColor={tokens.colors.textMuted}
                                 />
                             </View>
                         ))}
@@ -183,7 +184,7 @@ const AddItemScreen = ({ navigation, route }) => {
                             <Text style={styles.recommendationsTitle}>Suggerimenti di Articoli Correlati</Text>
                             {recommendations.map((rec, idx) => (
                                 <TouchableOpacity key={idx} onPress={() => Linking.openURL(rec.url)} style={styles.recommendationLink}>
-                                    <Text style={{ color: COLORS.primary, fontWeight: '500', fontSize: 14 }}>{rec.title} →</Text>
+                                    <Text style={{ color: tokens.colors.primary, fontWeight: '500', fontSize: 14 }}>{rec.title} →</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -198,31 +199,32 @@ const AddItemScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.surface },
+    container: { flex: 1, backgroundColor: tokens.colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
     backButton: { paddingRight: 12, paddingVertical: 4 },
-    title: { fontSize: 20, fontWeight: '700', color: COLORS.textPrimary },
-    statusText: { textAlign: 'center', marginBottom: 15, marginHorizontal: 20, color: COLORS.primary, fontSize: 14, minHeight: 20 },
-    imageUploadArea: { marginBottom: 25, marginHorizontal: 20, borderWidth: 2, borderColor: COLORS.border, borderRadius: 12, padding: 10, backgroundColor: COLORS.surface },
+    title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
+    statusText: { textAlign: 'center', marginBottom: 15, marginHorizontal: 20, color: tokens.colors.primary, fontSize: 14, minHeight: 20 },
+    imageUploadArea: { marginBottom: 25, marginHorizontal: 20, borderWidth: 2, borderColor: tokens.colors.border, borderRadius: 12, padding: 10, backgroundColor: tokens.colors.surface },
     imagePreview: { width: '100%', height: 300, borderRadius: 10, resizeMode: 'cover' },
     placeholder: { padding: 30, marginHorizontal: 20, alignItems: 'center' },
     buttonRow: { flexDirection: 'row', gap: 12, marginBottom: 25, marginHorizontal: 20 },
     actionButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-    cameraButton: { backgroundColor: COLORS.surfaceLight, borderColor: COLORS.primary },
-    galleryButton: { backgroundColor: COLORS.surfaceLight, borderColor: COLORS.primaryLight },
-    buttonText: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-    duplicateContainer: { marginHorizontal: 20, marginBottom: 20, padding: 12, borderRadius: 12, backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.warning },
-    duplicateTitle: { color: COLORS.warning, fontWeight: '700', marginBottom: 4 },
-    duplicateMsg: { color: COLORS.textSecondary },
-    form: { marginHorizontal: 20, marginBottom: 30, backgroundColor: COLORS.surface, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-    formTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 10 },
+    cameraButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primary },
+    galleryButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primaryLight },
+    buttonText: { fontSize: 14, fontWeight: '600', color: tokens.colors.textPrimary },
+    duplicateContainer: { marginHorizontal: 20, marginBottom: 20, padding: 12, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.warning },
+    duplicateTitle: { color: tokens.colors.warning, fontWeight: '700', marginBottom: 4 },
+    duplicateMsg: { color: tokens.colors.textSecondary },
+    form: { marginHorizontal: 20, marginBottom: 30, backgroundColor: tokens.colors.surface, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: tokens.colors.border },
+    formTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.textPrimary, marginBottom: 10 },
     fieldGroup: { marginBottom: 12 },
-    label: { fontSize: 12, color: COLORS.textSecondary, marginBottom: 6, textTransform: 'capitalize' },
-    input: { backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.border, padding: 12, borderRadius: 10, color: COLORS.textPrimary },
-    recommendations: { padding: 15, backgroundColor: COLORS.surfaceLight, borderWidth: 1, borderColor: COLORS.primary, borderRadius: 8, marginBottom: 20 },
-    recommendationsTitle: { fontSize: 16, fontWeight: '700', color: COLORS.primary, marginBottom: 10 },
-    recommendationLink: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-    saveButton: { marginHorizontal: 20, marginBottom: 30, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: COLORS.primary },
+    label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 6, textTransform: 'capitalize' },
+    input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 12, borderRadius: 10, color: tokens.colors.textPrimary },
+    recommendations: { padding: 15, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.primary, borderRadius: 8, marginBottom: 20 },
+    recommendationsTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary, marginBottom: 10 },
+    recommendationLink: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: tokens.colors.border },
+    saveButton: { marginHorizontal: 20, marginBottom: 30, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: tokens.colors.primary },
 });
 
 export default AddItemScreen;
+
