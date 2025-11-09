@@ -5,6 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import storage from '@react-native-firebase/storage';
 import firestore from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
+import { classifyClothingFromUri } from '../ml/executorchClient';
+import { ML_CONFIG } from '../ml/config';
 import { APP_ID } from '../config/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -72,9 +74,24 @@ const AddItemScreen = ({ navigation, route }) => {
 
     const analyzeAndCheck = async (base64) => {
         setLoading(true);
-        setStatus('Analisi immagine in corso con Gemini AI...');
+        setStatus('Analisi on-device in corso...');
         try {
-            const aiResult = await analyzeImageWithGemini(base64);
+            // 1) On-device fast classification (if available)
+            let aiResult = {};
+            if (imageLocalUri) {
+                const localPred = await classifyClothingFromUri(imageLocalUri);
+                if (localPred && localPred.confidence >= ML_CONFIG.confidenceThreshold) {
+                    aiResult.category = localPred.label;
+                    setStatus(`Rilevata categoria locale: ${localPred.label} (${(localPred.confidence*100).toFixed(0)}%)`);
+                } else {
+                    setStatus('Bassa confidenza locale. Analisi Gemini in corso...');
+                    aiResult = await analyzeImageWithGemini(base64);
+                }
+            } else {
+                setStatus('Analisi Gemini in corso...');
+                aiResult = await analyzeImageWithGemini(base64);
+            }
+
             setMetadata(prev => ({ ...prev, ...aiResult }));
             setStatus('Verifica duplicati nell\'armadio...');
             const duplicate = await checkDuplicate(aiResult);
