@@ -58,12 +58,7 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
+// The moduleNameMapper routes react-native-reanimated to our local mock, no explicit jest.mock needed.
 
 // Mock expo-image-picker
 jest.mock('expo-image-picker', () => ({

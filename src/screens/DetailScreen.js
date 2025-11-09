@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, Alert, TextInput, ScrollView, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ChevronLeft } from 'lucide-react-native';
@@ -62,6 +62,27 @@ const DetailScreen = ({ navigation, route }) => {
     );
   };
 
+  const styles = useMemo(() => StyleSheet.create({
+    container: { flex: 1, backgroundColor: tokens.colors.background },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
+    backButton: { paddingRight: 12, paddingVertical: 4 },
+    title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
+    image: { width: '100%', height: 400, resizeMode: 'cover', backgroundColor: tokens.colors.surface },
+    form: { backgroundColor: tokens.colors.surface, margin: 16, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: tokens.colors.border },
+    formGroup: { marginBottom: 14 },
+    label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 4, textTransform: 'capitalize' },
+    input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 10, borderRadius: 10, color: tokens.colors.textPrimary },
+    buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+    button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+    primaryButton: { backgroundColor: tokens.colors.primary },
+    secondaryButton: { backgroundColor: tokens.colors.surfaceLight },
+    deleteButton: { backgroundColor: tokens.colors.error },
+    buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
+    infoBox: { backgroundColor: tokens.colors.surface, margin: 16, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: tokens.colors.border },
+    itemName: { fontSize: 28, fontWeight: '800', color: tokens.colors.textPrimary, marginBottom: 16 },
+    meta: { fontSize: 16, color: tokens.colors.textSecondary, marginBottom: 10 },
+  }), [tokens]);
+
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
@@ -117,27 +138,6 @@ const DetailScreen = ({ navigation, route }) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: tokens.colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
-  backButton: { paddingRight: 12, paddingVertical: 4 },
-  title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
-  image: { width: '100%', height: 400, resizeMode: 'cover', backgroundColor: tokens.colors.surface },
-  form: { backgroundColor: tokens.colors.surface, margin: 16, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: tokens.colors.border },
-  formGroup: { marginBottom: 14 },
-  label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 4, textTransform: 'capitalize' },
-  input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 10, borderRadius: 10, color: tokens.colors.textPrimary },
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  primaryButton: { backgroundColor: tokens.colors.primary },
-  secondaryButton: { backgroundColor: tokens.colors.surfaceLight },
-  deleteButton: { backgroundColor: tokens.colors.error },
-  buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
-  infoBox: { backgroundColor: tokens.colors.surface, margin: 16, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: tokens.colors.border },
-  itemName: { fontSize: 28, fontWeight: '800', color: tokens.colors.textPrimary, marginBottom: 16 },
-  meta: { fontSize: 16, color: tokens.colors.textSecondary, marginBottom: 10 },
-});
 
 export default DetailScreen;
 

@@ -23,7 +23,11 @@ export const analyzeImageWithGemini = async (base64Image) => {
             size: result.data.size || '',
           };
         }
-        throw new Error(result.error || 'Errore analisi immagine');
+        // Application-level error: do not retry
+        const err = new Error(result.error || 'Errore analisi immagine');
+        // mark to skip retry loop
+        err.noRetry = true;
+        throw err;
       } else if (response.status === 429 && attempt < 4) {
         const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
         await new Promise(r => setTimeout(r, delay));
@@ -32,6 +36,7 @@ export const analyzeImageWithGemini = async (base64Image) => {
       const text = await response.text();
       throw new Error(`Cloud Function error: ${response.status} ${text}`);
     } catch (e) {
+      if (e && e.noRetry) throw e; // do not retry on application-level errors
       if (attempt === 4) throw e;
       const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
       await new Promise(r => setTimeout(r, delay));

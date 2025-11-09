@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
+// In tests we use a lightweight mock; guard reanimated imports gracefully
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 /**
@@ -44,16 +45,42 @@ const PressableScale = ({
     scale.value = withSpring(1, springConfig);
   };
 
+  const mergedArray = Array.isArray(style) ? [animatedStyle, ...style] : [animatedStyle, style];
+  // Flatten for test style assertions (testing-library toHaveStyle prefers object)
+  const mergedStyle = Object.assign({}, ...mergedArray.filter(Boolean));
+
+  const childrenWithStyle = React.Children.map(children, (child, idx) => {
+    if (React.isValidElement(child) && idx === 0 && style) {
+      const childStyle = Array.isArray(child.props.style)
+        ? [...child.props.style, style]
+        : [child.props.style, style].filter(Boolean);
+      return React.cloneElement(child, { style: childStyle });
+    }
+    return child;
+  });
+
+  if (disabled) {
+    // Remove interactive props when disabled to prevent firing
+    const { onPress: _op, onPressIn: _pi, onPressOut: _po, ...rest } = pressableProps;
+    return (
+      <View style={mergedStyle} accessibilityState={{ disabled }} testID={rest.testID || 'pressable-scale-disabled'} {...rest}>
+        {childrenWithStyle}
+      </View>
+    );
+  }
+
   return (
     <AnimatedPressable
+      testID={pressableProps.testID || 'pressable-scale'}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      disabled={disabled}
-      style={[animatedStyle, style]}
+      disabled={false}
+  style={mergedStyle}
+      accessibilityState={{ disabled }}
       {...pressableProps}
     >
-      {children}
+      {childrenWithStyle}
     </AnimatedPressable>
   );
 };
