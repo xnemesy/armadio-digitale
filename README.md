@@ -4,7 +4,9 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
 
 ## ✨ Funzionalità
 
-- 📸 **Scansione AI Avanzata**: Analizza foto dei capi con Gemini 2.0 Flash Exp per estrarre metadati dettagliati
+- 📸 **Scansione AI Avanzata**: Analisi ibrida on-device + cloud
+  - **On-Device (ExecuTorch)**: Classificazione categoria in locale con MobileNetV3 INT8 (~3-6MB)
+  - **Cloud (Gemini 2.0 Flash Exp)**: Metadati dettagliati quando confidenza locale < 70%
   - **Nome**: Modello specifico + colorway (es: "Air Jordan 4 Retro Bred Reimagined")
   - **Brand**: Marca + sotto-marca (es: "Nike Jordan", "Adidas Originals")
   - **Colore**: Sfumature precise (es: "Nero Lucido/Rosso" invece di solo "Nero")
@@ -16,15 +18,18 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
 - 🔥 **Backend Firebase**: Firestore + Storage + Auth ready
 - 📊 **Analytics**: Statistiche dettagliate del guardaroba
 
-## �🏗️ Architettura
+## 🏗️ Architettura
 
 - **Framework**: React Native 0.81.5 + Expo SDK 54 (dev client)
 - **Navigation**: React Navigation v6 (nested tabs + stacks)
 - **Backend**: Firebase (Firestore, Storage, Auth)
-- **AI**: Google Gemini 2.0 Flash Exp via Cloud Functions con prompt ottimizzato per fashion
+- **AI Ibrida**: 
+  - **On-Device**: ExecuTorch + MobileNetV3 INT8 per categoria locale (bassa latenza, privacy, offline)
+  - **Cloud**: Gemini 2.0 Flash Exp via Cloud Functions con prompt fashion-expert (nomi/brand precisi)
+  - **Strategia**: Local-first con fallback intelligente basato su confidence threshold (70%)
 - **State**: React Hooks + AsyncStorage per persistenza
 - **Animations**: Reanimated 3 + PressableScale component
-- **Design System**: Design tokens + COLORS palette (dark "The Athletic" style)
+- **Design System**: Design tokens + ThemeContext per dark/light mode
 - **Code Quality**: ESLint + Prettier + community config
 
 📖 **Documentazione completa**: Vedi [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) per dettagli su folder structure, navigation flow, data flow, e design system.
@@ -165,8 +170,15 @@ eas build --profile production --platform ios
 │   │   ├── LoadingOverlay.js
 │   │   ├── PressableScale.js       # 🆕 Animated pressable (Reanimated)
 │   │   └── index.js                # Barrel export
+│   ├── ml/                         # 🆕 ExecuTorch on-device ML (POC)
+│   │   ├── executorchClient.js     # Client con dynamic import + fallback
+│   │   ├── config.js               # Threshold, normalizzazione, model path
+│   │   └── labels.js               # 15 classi abbigliamento
 │   ├── lib/
 │   │   └── ai.js                   # 🆕 AI utilities (Gemini 3 funzioni)
+│   ├── contexts/                   # 🆕 React Context providers
+│   │   ├── AuthContext.js          # Firebase Auth state
+│   │   └── ThemeContext.js         # Dark/light mode switching
 │   ├── theme/
 │   │   └── colors.js               # Palette COLORS (legacy, retrocompat)
 │   ├── design/
@@ -174,6 +186,8 @@ eas build --profile production --platform ios
 │   └── config/
 │       └── appConfig.js            # APP_ID single source of truth
 ├── assets/                         # Immagini, icone, splash screen
+│   └── models/                     # 🆕 Modelli ML (.pte files)
+│       └── README.txt              # Istruzioni posizionamento modello
 └── scripts/                        # Script utilità (relocate, firebase restore)
 ```
 
@@ -308,6 +322,13 @@ Target coverage:
 ## 📝 Note Tecniche
 
 - **React Native Firebase**: Richiede build nativi (non compatibile con Expo Go)
+- **ExecuTorch ML (POC)**: 
+  - Inference on-device con MobileNetV3 INT8 quantizzato (~3-6MB)
+  - 15 classi base: tshirt, shirt, sweatshirt, jacket, coat, pants, jeans, shorts, skirt, dress, shoes, sneakers, bag, hat, accessory
+  - Soglia confidenza: 70% (configurabile in `src/ml/config.js`)
+  - Fallback a Gemini quando confidenza < threshold
+  - Richiede Dev Client build (non funziona su Expo Go)
+  - **Setup**: Posiziona il modello `.pte` in `assets/models/mobilenet_v3_clothes_int8.pte` e rebuild
 - **Upload immagini**: Usa `putFile(uri)` con React Native Firebase Storage
 - **Gemini AI Cloud Function**: 
   - Modello: **Gemini 2.0 Flash Exp** con prompt ottimizzato per moda/fashion
@@ -321,6 +342,7 @@ Target coverage:
 - **Filter Persistence**: Filtri e sorting salvati in AsyncStorage (`@armadio_filters`, `@armadio_sort`)
 - **Micro-interactions**: `PressableScale` component con Reanimated `withSpring` per feedback tattile
 - **Navigation**: Nested structure (MainTabNavigator → HomeStack/OutfitStack/ProfileStack)
+- **Theme Switching**: ThemeContext con dark/light/auto mode, tokens dinamici applicati globalmente
 
 ## 📚 Risorse
 
@@ -330,6 +352,87 @@ Target coverage:
 - [React Native Firebase](https://rnfirebase.io/)
 - [Reanimated v3](https://docs.swmansion.com/react-native-reanimated/)
 - [Lucide Icons](https://lucide.dev/)
+- [ExecuTorch](https://pytorch.org/executorch/) - PyTorch on-device runtime
+- [React Native ExecuTorch](https://github.com/pytorch/executorch/tree/main/examples/demo-apps/react-native) - RN bindings
+
+## 🤖 ML Setup (ExecuTorch POC)
+
+### Prerequisiti
+1. **Modello PyTorch**: MobileNetV3-Small fine-tuned su 10-15 classi di abbigliamento
+2. **Quantizzazione**: INT8 post-training quantization per ridurre dimensioni (~3-6MB)
+3. **Export**: Convertire il modello in formato `.pte` con ExecuTorch
+
+### Passaggi Setup
+
+**1. Posiziona il modello**
+```bash
+# Copia il modello .pte nella cartella assets
+cp mobilenet_v3_clothes_int8.pte assets/models/
+```
+
+**2. Rebuild Dev Client** (necessario per react-native-executorch)
+```bash
+# Android
+npx expo prebuild
+npx expo run:android
+
+# iOS (solo Mac)
+npx expo prebuild  
+npx expo run:ios
+```
+
+**3. Verifica funzionamento**
+- Apri app → "Aggiungi Nuovo Capo"
+- Scatta/scegli una foto
+- Dovresti vedere "Analisi on-device in corso..."
+- Se confidenza >= 70%: categoria settata localmente
+- Se confidenza < 70%: fallback automatico a Gemini
+
+### Configurazione
+
+Modifica soglia e parametri in `src/ml/config.js`:
+```javascript
+export const ML_CONFIG = {
+  confidenceThreshold: 0.7,  // Soglia per accettare predizione locale
+  inputSize: 224,            // Input size modello
+  normalization: {           // Normalizzazione ImageNet
+    mean: [0.485, 0.456, 0.406],
+    std: [0.229, 0.224, 0.225],
+  },
+};
+```
+
+### Export Modello (PyTorch → ExecuTorch)
+
+Se hai bisogno di creare il modello `.pte`, ecco uno script base:
+
+```python
+import torch
+from torchvision.models import mobilenet_v3_small
+from torch.ao.quantization import quantize_dynamic
+from executorch.exir import to_edge
+
+# 1. Carica modello pre-trained
+model = mobilenet_v3_small(pretrained=True)
+model.eval()
+
+# 2. Fine-tune su tue 15 classi (training custom)
+# ... (tuo codice di training)
+
+# 3. Quantizzazione INT8
+model_int8 = quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+
+# 4. Export ExecuTorch
+example_input = (torch.randn(1, 3, 224, 224),)
+edge_program = to_edge(torch.export.export(model_int8, example_input))
+executorch_program = edge_program.to_executorch()
+
+# 5. Salva .pte
+with open("mobilenet_v3_clothes_int8.pte", "wb") as f:
+    f.write(executorch_program.buffer)
+```
+
+Vedi [ExecuTorch Tutorials](https://pytorch.org/executorch/stable/tutorials.html) per dettagli.
 
 ## 📄 Licenza
 
