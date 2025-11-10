@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, TextInput, Modal, Animated } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Modal, Animated } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
 import { Picker } from '@react-native-picker/picker';
 import { Search, X } from 'lucide-react-native';
-import { ItemCard } from '../components';
-import { PressableScale } from '../components';
+import { ItemCard, PressableScale, SkeletonBlock } from '../components';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
@@ -171,9 +170,18 @@ const HomeScreen = ({ navigation, route }) => {
 
     if (loadingItems) {
         return (
-            <View style={[styles.loadingContainer, { backgroundColor: tokens.colors.background }]}>
-                <ActivityIndicator size="large" color={tokens.colors.primary} />
-                <Text style={[styles.loadingText, { color: tokens.colors.textSecondary }]}>Caricamento...</Text>
+            <View style={[styles.loadingSkeletonContainer, { backgroundColor: tokens.colors.background }]}>
+                {[0, 1, 2].map(row => (
+                    <View key={row} style={styles.skeletonRow}>
+                        {[0, 1].map(col => (
+                            <View key={`skeleton-${row}-${col}`} style={[styles.skeletonCard, { backgroundColor: tokens.colors.surface, borderRadius: tokens.radii.lg }]}> 
+                                <SkeletonBlock height={150} borderRadius={tokens.radii.lg} />
+                                <SkeletonBlock height={14} style={styles.skeletonLinePrimary} />
+                                <SkeletonBlock height={12} style={styles.skeletonLineSecondary} />
+                            </View>
+                        ))}
+                    </View>
+                ))}
             </View>
         );
     }
@@ -399,12 +407,28 @@ const styles = StyleSheet.create({
         height: 36, 
         borderRadius: 6 
     },
-    loadingContainer: { 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center'
+    loadingSkeletonContainer: {
+        flex: 1,
+        paddingTop: 60,
+        paddingHorizontal: 16,
     },
-    loadingText: { marginTop: 10 },
+    skeletonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 18,
+    },
+    skeletonCard: {
+        flex: 0.48,
+        padding: 12,
+    },
+    skeletonLinePrimary: {
+        marginTop: 12,
+        width: '70%',
+    },
+    skeletonLineSecondary: {
+        marginTop: 8,
+        width: '50%',
+    },
     
     // FAB Button
     fabButton: {
