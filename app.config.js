@@ -31,6 +31,12 @@ export default {
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"
+      },
+      config: {
+        googleSignIn: {
+          // Required for Google Sign-In
+          apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+        }
       }
     },
     plugins: [
@@ -48,7 +54,9 @@ export default {
       },
       APP_ID: process.env.APP_ID || "armadio-digitale",
       EXPO_PUBLIC_GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
-      EXPO_PUBLIC_FIREBASE_API_KEY: process.env.EXPO_PUBLIC_FIREBASE_API_KEY
+      EXPO_PUBLIC_FIREBASE_API_KEY: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+      // Google Sign-In Web Client ID (from Firebase Console)
+      googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
     }
   }
 };

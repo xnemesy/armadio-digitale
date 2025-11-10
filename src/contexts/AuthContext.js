@@ -2,8 +2,11 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { APP_ID } from '../config/appConfig';
+import { signInWithGoogle as googleSignIn, signOutFromGoogle, configureGoogleSignIn } from '../lib/googleAuth';
+import { signInWithApple as appleSignIn, isAppleSignInSupported } from '../lib/appleAuth';
+import Constants from 'expo-constants';
 
 const AuthContext = createContext({});
 
@@ -11,6 +14,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [initializing, setInitializing] = useState(true);
+
+  // Configure Google Sign-In on mount
+  useEffect(() => {
+    const webClientId = Constants.expoConfig?.extra?.googleWebClientId;
+    if (webClientId) {
+      configureGoogleSignIn(webClientId);
+    } else {
+      console.warn('⚠️  Google Web Client ID non configurato in app.config.js');
+    }
+  }, []);
 
   // Monitor auth state changes
   useEffect(() => {
@@ -103,11 +116,56 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setLoading(true);
+      
+      // Sign out da Google se necessario
+      await signOutFromGoogle();
+      
+      // Sign out da Firebase
       await auth().signOut();
       return { success: true };
     } catch (error) {
       console.error('Sign out error:', error);
       return { success: false, error: 'Errore durante il logout' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign in with Google
+  const signInWithGoogle = async () => {
+    try {
+      setLoading(true);
+      await googleSignIn();
+      return { success: true };
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      return { success: false, error: error.message || 'Errore durante il login con Google' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sign in with Apple
+  const signInWithApple = async () => {
+    try {
+      setLoading(true);
+      
+      // Verifica supporto
+      const isSupported = await isAppleSignInSupported();
+      if (!isSupported) {
+        return { 
+          success: false, 
+          error: Platform.OS === 'ios' 
+            ? 'Apple Sign-In richiede iOS 13 o superiore'
+            : 'Apple Sign-In è disponibile solo su iOS'
+        };
+      }
+      
+      await appleSignIn();
+      return { success: true };
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+      return { success: false, error: error.message || 'Errore durante il login con Apple' };
     } finally {
       setLoading(false);
     }
@@ -268,6 +326,8 @@ export const AuthProvider = ({ children }) => {
     signIn,
     signUp,
     signOut,
+    signInWithGoogle,
+    signInWithApple,
     resetPassword,
     updateUserProfile,
     resendEmailVerification,
