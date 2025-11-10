@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarChart3 } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
+import { SkeletonBlock } from '../components';
 
 const StatsScreen = ({ route }) => {
   const { user } = route.params || { user: { uid: 'test-user' } };
   const { tokens } = useTheme();
   const [stats, setStats] = useState({ totalItems: 0, byCategory: {}, byColor: {}, byBrand: {}, bySize: {} });
   const [loading, setLoading] = useState(true);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -50,8 +52,27 @@ const StatsScreen = ({ route }) => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
-          <View style={styles.header}><BarChart3 size={24} color={tokens.colors.primary} strokeWidth={2.5} /><Text style={styles.headerTitle}>Statistiche</Text></View>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={tokens.colors.primary} /></View>
+          <View style={styles.header}>
+            <BarChart3 size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+            <Text style={styles.headerTitle}>Statistiche</Text>
+          </View>
+          <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+            <View style={styles.totalCard}>
+              <SkeletonBlock width="40%" height={16} />
+              <SkeletonBlock width="70%" height={42} style={{ marginTop: 12 }} />
+            </View>
+            {[0, 1, 2].map(section => (
+              <View key={`skeleton-section-${section}`} style={styles.section}>
+                <SkeletonBlock width="50%" height={16} />
+                {[0, 1, 2].map(row => (
+                  <View key={`skeleton-row-${section}-${row}`} style={styles.statRow}>
+                    <SkeletonBlock width="60%" height={14} />
+                    <SkeletonBlock width={36} height={14} />
+                  </View>
+                ))}
+              </View>
+            ))}
+          </ScrollView>
         </View>
       </SafeAreaView>
     );
@@ -73,7 +94,7 @@ const StatsScreen = ({ route }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = tokens => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: tokens.colors.background },
   container: { flex: 1, backgroundColor: tokens.colors.background },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
@@ -84,7 +105,7 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 48, fontWeight: '800', color: tokens.colors.primary },
   section: { backgroundColor: tokens.colors.surface, borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1, borderColor: tokens.colors.border },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.textPrimary, marginBottom: 16 },
-  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.colors.border },
+  statRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, gap: 16 },
   statLabel: { fontSize: 15, color: tokens.colors.textSecondary, fontWeight: '500', flex: 1 },
   statValue: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary, minWidth: 40, textAlign: 'right' },
 });

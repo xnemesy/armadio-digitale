@@ -5,9 +5,9 @@ import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone } from 'lucide-r
 import firestore from '@react-native-firebase/firestore';
 import { APP_ID } from '../config/appConfig';
 import * as Haptics from 'expo-haptics';
-import { COLORS } from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { SkeletonBlock } from '../components';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, signOut, resendEmailVerification, deleteAccount, loading: authLoading } = useAuth();
@@ -161,7 +161,11 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={[styles.sectionTitle, { color: tokens.colors.textPrimary }]}>Statistiche</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: tokens.colors.accent }]}>{loading ? '...' : itemsCount}</Text>
+                {loading ? (
+                  <SkeletonBlock width={48} height={24} style={styles.statSkeleton} />
+                ) : (
+                  <Text style={[styles.statValue, { color: tokens.colors.accent }]}>{itemsCount}</Text>
+                )}
                 <Text style={[styles.statLabel, { color: tokens.colors.textSecondary }]}>Capi</Text>
               </View>
               <View style={[styles.divider, { backgroundColor: tokens.colors.border }]} />
@@ -268,6 +272,7 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center' },
   statValue: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
   statLabel: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  statSkeleton: { marginBottom: 10, alignSelf: 'center' },
   divider: { width: 1, height: 40 },
   settingsCard: { borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1 },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1 },
