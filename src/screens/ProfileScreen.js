@@ -212,6 +212,30 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          <View style={[styles.legalCard, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: tokens.colors.textPrimary }]}>Legale</Text>
+            
+            <TouchableOpacity 
+              style={[styles.settingItem, { borderBottomColor: tokens.colors.border }]} 
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            >
+              <View style={styles.settingLeft}>
+                <ShieldCheck size={20} color={tokens.colors.accent} strokeWidth={2} />
+                <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Privacy Policy</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.settingItem, { borderBottomWidth: 0 }]}
+              onPress={() => navigation.navigate('Terms')}
+            >
+              <View style={styles.settingLeft}>
+                <Text style={styles.settingIcon}>📄</Text>
+                <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Termini di Servizio</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity 
             style={[styles.logoutButton, { backgroundColor: tokens.colors.error }]} 
             onPress={handleLogout}
@@ -275,6 +299,7 @@ const styles = StyleSheet.create({
   statSkeleton: { marginBottom: 10, alignSelf: 'center' },
   divider: { width: 1, height: 40 },
   settingsCard: { borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1 },
+  legalCard: { borderRadius: 16, padding: 20, marginTop: 16, borderWidth: 1 },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1 },
   settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   settingIcon: { fontSize: 20 },

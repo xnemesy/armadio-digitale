@@ -5,3 +5,5 @@ export { default as DetailScreen } from './DetailScreen';
 export { default as OutfitBuilderScreen } from './OutfitBuilderScreen';
 export { default as ProfileScreen } from './ProfileScreen';
 export { default as StatsScreen } from './StatsScreen';
+export { default as PrivacyPolicyScreen } from './legal/PrivacyPolicyScreen';
+export { default as TermsScreen } from './legal/TermsScreen';
