@@ -1,7 +1,12 @@
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 
-// Initialize Sentry only if DSN is provided
-const SENTRY_DSN = process.env.SENTRY_DSN || null;
+// Initialize Sentry only if DSN is provided via Expo extra or env
+const SENTRY_DSN =
+  Constants.expoConfig?.extra?.SENTRY_DSN ||
+  Constants.manifest?.extra?.SENTRY_DSN ||
+  process.env.SENTRY_DSN ||
+  null;
 
 export const initializeSentry = () => {
   if (!SENTRY_DSN) {

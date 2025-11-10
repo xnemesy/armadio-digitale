@@ -49,6 +49,13 @@ armadio-digitale/
 logs/
 *.log
 
+# Test coverage reports
+coverage/
+
+# Encoded secrets and archives
+*.b64
+*.tar.gz
+
 # Temporary files
 tmp/
 temp/

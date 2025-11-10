@@ -6,7 +6,7 @@ module.exports = function(api) {
       '@babel/preset-flow', // Add Flow support for React Native
     ],
     plugins: [
-      ['module:react-native-dotenv'],
+      // Removed react-native-dotenv: using Expo extra (app.config.js) + Constants instead
       'react-native-reanimated/plugin',
     ]
   };

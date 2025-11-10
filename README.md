@@ -116,6 +116,7 @@ npm run lint            # Check codice con ESLint
 npm run lint:fix        # Auto-fix issues ESLint
 npm run format          # Format con Prettier
 npm run format:check    # Verifica formatting
+npm run purge           # Deep clean (git clean -fdx) + reinstall deps
 npm run relocate        # Sposta progetto (gestisce path con spazi)
 ```
 
