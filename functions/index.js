@@ -1,7 +1,12 @@
 const functions = require('@google-cloud/functions-framework');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { createClient } = require('redis');
+// Firestore will replace Redis for caching to reduce cost and simplify infra
+const { Firestore, Timestamp } = require('@google-cloud/firestore');
+// (Redis left temporarily in dependencies for graceful teardown; code path removed)
+
+// Initialize Firestore client (auto uses GOOGLE_APPLICATION_CREDENTIALS / metadata credentials)
+const firestore = new Firestore();
 
 // Inizializza Secret Manager client
 const secretClient = new SecretManagerServiceClient();
@@ -9,45 +14,9 @@ const secretClient = new SecretManagerServiceClient();
 // Cache per l'API key (evita chiamate ripetute a Secret Manager)
 let cachedApiKey = null;
 
-// Redis client
-let redisClient = null;
-const REDIS_HOST = process.env.REDIS_HOST || '10.64.224.131';
-const REDIS_PORT = process.env.REDIS_PORT || 6379;
-const CACHE_TTL = 60 * 60 * 24 * 7; // 7 giorni
-
-/**
- * Inizializza connessione Redis (lazy initialization)
- */
-async function getRedisClient() {
-  if (redisClient && redisClient.isOpen) {
-    return redisClient;
-  }
-
-  try {
-    redisClient = createClient({
-      socket: {
-        host: REDIS_HOST,
-        port: REDIS_PORT,
-        reconnectStrategy: (retries) => {
-          if (retries > 3) {
-            console.error('❌ Redis connection failed after 3 retries');
-            return new Error('Redis unavailable');
-          }
-          return Math.min(retries * 100, 3000);
-        }
-      }
-    });
-
-    redisClient.on('error', (err) => console.error('Redis Client Error:', err));
-    
-    await redisClient.connect();
-    console.log('✅ Redis connected');
-    return redisClient;
-  } catch (error) {
-    console.error('❌ Redis connection error:', error.message);
-    return null; // Graceful fallback
-  }
-}
+// Firestore cache settings
+const IMAGE_CACHE_COLLECTION = process.env.IMAGE_CACHE_COLLECTION || 'imageAnalysisCache';
+const IMAGE_CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 giorni
 
 // Rate limiting: mappa IP -> array di timestamp
 const rateLimitMap = new Map();
@@ -195,26 +164,28 @@ functions.http('analyzeImage', async (req, res) => {
     // Genera cache key (hash dell'immagine per evitare duplicati)
     const crypto = require('crypto');
     const imageHash = crypto.createHash('sha256').update(imageBase64).digest('hex');
-    const cacheKey = `gemini:analysis:${imageHash}`;
-
-    // Prova a recuperare da cache Redis
+    const cacheDocRef = firestore.collection(IMAGE_CACHE_COLLECTION).doc(imageHash);
     let cacheHit = false;
     let cachedResult = null;
-    
-    const redis = await getRedisClient();
-    if (redis) {
-      try {
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-          cachedResult = JSON.parse(cached);
+    try {
+      const cacheSnap = await cacheDocRef.get();
+      if (cacheSnap.exists) {
+        const cacheData = cacheSnap.data();
+        const expiresAt = cacheData.expiresAt instanceof Timestamp ? cacheData.expiresAt.toMillis() : 0;
+        if (expiresAt > Date.now() && cacheData.data) {
+          cachedResult = cacheData.data;
           cacheHit = true;
-          console.log('✅ Cache HIT:', cacheKey.substring(0, 30) + '...');
+          // Aggiorna hits async (non blocca risposta)
+          cacheDocRef.update({ hits: (cacheData.hits || 0) + 1 }).catch(()=>{});
+          console.log(JSON.stringify({ level: 'INFO', cache: 'HIT', key: imageHash.substring(0,16), collection: IMAGE_CACHE_COLLECTION }));
         } else {
-          console.log('⚠️ Cache MISS:', cacheKey.substring(0, 30) + '...');
+          console.log(JSON.stringify({ level: 'INFO', cache: 'EXPIRED', key: imageHash.substring(0,16), collection: IMAGE_CACHE_COLLECTION }));
         }
-      } catch (cacheError) {
-        console.warn('⚠️ Redis read error (continuing without cache):', cacheError.message);
+      } else {
+        console.log(JSON.stringify({ level: 'INFO', cache: 'MISS', key: imageHash.substring(0,16), collection: IMAGE_CACHE_COLLECTION }));
       }
+    } catch (fsCacheErr) {
+      console.warn(JSON.stringify({ level: 'WARN', cache: 'READ_ERROR', error: fsCacheErr.message }));
     }
 
     // Se cache hit, restituisci immediatamente
@@ -256,6 +227,9 @@ functions.http('analyzeImage', async (req, res) => {
     // Inizializza Gemini AI
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+    // Log Gemini API call (for fallback tracking)
+    console.log(JSON.stringify({ level: 'INFO', gemini: 'CALL', key: imageHash.substring(0,16) }));
 
     // Prompt ottimizzato per Armadio Digitale - analisi dettagliata per Name e Brand
     const prompt = `Sei un analista di capi d'abbigliamento esperto e preciso, specializzato nella moda, dallo streetwear al classico. 
@@ -338,12 +312,14 @@ IMPORTANTE:
       data: parsedData
     }));
 
-    // Salva in cache Redis (fire-and-forget)
-    if (redis) {
-      redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(parsedData))
-        .then(() => console.log('💾 Cached result:', cacheKey.substring(0, 30) + '...'))
-        .catch(err => console.warn('⚠️ Redis write error:', err.message));
-    }
+    // Salva in cache Firestore (fire-and-forget)
+    cacheDocRef.set({
+      data: parsedData,
+      createdAt: Timestamp.now(),
+      expiresAt: Timestamp.fromMillis(Date.now() + IMAGE_CACHE_TTL_MS),
+      hits: 0
+    }).then(() => console.log(JSON.stringify({ level: 'INFO', cache: 'WRITE', key: imageHash.substring(0,16) })))
+      .catch(err => console.warn(JSON.stringify({ level: 'WARN', cache: 'WRITE_ERROR', error: err.message })));
 
     // Risposta di successo
     return res.status(200).json({

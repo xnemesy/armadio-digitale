@@ -1,7 +1,7 @@
 // ExecuTorch ML POC configuration
 export const ML_CONFIG = {
   // Confidence threshold to accept on-device prediction without cloud fallback
-  confidenceThreshold: 0.7,
+  confidenceThreshold: 0.8,
   // Input size expected by MobileNetV3 models
   inputSize: 224,
   // Expected normalization parameters (Imagenet-like)
