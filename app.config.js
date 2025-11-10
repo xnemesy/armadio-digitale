@@ -24,8 +24,8 @@ export default {
     },
     android: {
       package: "com.armadiodigitale.app",
-      targetSdkVersion: 34,
-      compileSdkVersion: 34,
+      targetSdkVersion: 36,
+      compileSdkVersion: 36,
       // Usa file rigenerato da script restore-firebase-config
       googleServicesFile: process.env.ANDROID_GOOGLE_SERVICES_FILE || "./google-services.json",
       adaptiveIcon: {

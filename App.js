@@ -8,6 +8,17 @@ import AuthScreen from './src/screens/AuthScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { COLORS } from './src/theme/colors';
+import { getTokens } from './src/design/tokens';
+
+// GLOBAL FALLBACK SAFETY
+// Some legacy modules (or minified third-party code) appear to reference a global `tokens` object
+// very early during runtime initialization (before React providers mount). This caused a
+// ReferenceError: Property 'tokens' doesn't exist in release Hermes runtime.
+// To prevent a hard crash, we pre-populate a dark-mode default. The ThemeProvider will still supply
+// the proper contextual tokens via hooks; this global is only a safety net.
+if (typeof global !== 'undefined' && !global.tokens) {
+  global.tokens = getTokens('dark');
+}
 import { initializeSentry, setUserContext, clearUserContext } from './src/lib/sentry';
 import { initializeAnalytics, setUserId } from './src/lib/analytics';
 import ConsentDialog from './src/components/ConsentDialog';

@@ -177,7 +177,7 @@ const AddItemScreen = ({ navigation, route }) => {
                     </TouchableOpacity>
                     <Text style={styles.title}>Aggiungi Nuovo Capo</Text>
                 </View>
-                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 120 }}>
+                <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
                     <Text style={styles.statusText}>
                         {loading && <ActivityIndicator size="small" color={tokens.colors.primary} style={{ marginRight: 8 }} />}
                         {status}
@@ -189,7 +189,7 @@ const AddItemScreen = ({ navigation, route }) => {
                     ) : (
                         <View style={styles.placeholder}>
                             <Text style={{ fontSize: 48, color: tokens.colors.textSecondary }}>📷</Text>
-                            <Text style={{ color: tokens.colors.textSecondary, marginTop: 8 }}>{'Scegli come aggiungere la foto'}</Text>
+                            <Text style={{ color: tokens.colors.textSecondary, marginTop: 8 }}>Scegli come aggiungere la foto</Text>
                         </View>
                     )}
                     <View style={styles.buttonRow}>
@@ -204,7 +204,7 @@ const AddItemScreen = ({ navigation, route }) => {
                     </View>
                     {duplicateFound && (
                         <View style={styles.duplicateContainer}>
-                            <Text style={styles.duplicateTitle}>{'Capo Simile Trovato!'}</Text>
+                            <Text style={styles.duplicateTitle}>Capo Simile Trovato!</Text>
                             <Text style={styles.duplicateMsg}>{`Hai già "${duplicateFound.name}" (${duplicateFound.category}, ${duplicateFound.mainColor}).`}</Text>
                         </View>
                     )}
@@ -241,34 +241,6 @@ const AddItemScreen = ({ navigation, route }) => {
         </KeyboardAvoidingView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: tokens.colors.background },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
-    backButton: { paddingRight: 12, paddingVertical: 4 },
-    title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
-    statusText: { textAlign: 'center', marginBottom: 15, marginHorizontal: 20, color: tokens.colors.primary, fontSize: 14, minHeight: 20 },
-    imageUploadArea: { marginBottom: 25, marginHorizontal: 20, borderWidth: 2, borderColor: tokens.colors.border, borderRadius: 12, padding: 10, backgroundColor: tokens.colors.surface },
-    imagePreview: { width: '100%', height: 300, borderRadius: 10, resizeMode: 'cover' },
-    placeholder: { padding: 30, marginHorizontal: 20, alignItems: 'center' },
-    buttonRow: { flexDirection: 'row', gap: 12, marginBottom: 25, marginHorizontal: 20 },
-    actionButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-    cameraButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primary },
-    galleryButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primaryLight },
-    buttonText: { fontSize: 14, fontWeight: '600', color: tokens.colors.textPrimary },
-    duplicateContainer: { marginHorizontal: 20, marginBottom: 20, padding: 12, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.warning },
-    duplicateTitle: { color: tokens.colors.warning, fontWeight: '700', marginBottom: 4 },
-    duplicateMsg: { color: tokens.colors.textSecondary },
-    form: { marginHorizontal: 20, marginBottom: 30, backgroundColor: tokens.colors.surface, padding: 20, borderRadius: 12, borderWidth: 1, borderColor: tokens.colors.border },
-    formTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.textPrimary, marginBottom: 10 },
-    fieldGroup: { marginBottom: 12 },
-    label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 6, textTransform: 'capitalize' },
-    input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 12, borderRadius: 10, color: tokens.colors.textPrimary },
-    recommendations: { padding: 15, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.primary, borderRadius: 8, marginBottom: 20 },
-    recommendationsTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary, marginBottom: 10 },
-    recommendationLink: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: tokens.colors.border },
-    saveButton: { marginHorizontal: 20, marginBottom: 30, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: tokens.colors.primary },
-});
 
 export default AddItemScreen;
 

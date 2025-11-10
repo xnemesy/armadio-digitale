@@ -9,84 +9,85 @@ export const initializeSentry = () => {
     return;
   }
 
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    
-    // Enable in production only
-    enabled: !__DEV__,
-    
-    // Set environment
-    environment: __DEV__ ? 'development' : 'production',
-    
-    // Sample rate for performance monitoring (10% of transactions)
-    tracesSampleRate: 0.1,
-    
-    // Enable native crash handling
-    enableNative: true,
-    enableNativeNagger: false,
-    
-    // Attach stack trace to all messages
-    attachStacktrace: true,
-    
-    // Set release version (update this with your app version)
-    release: 'armadio-digitale@1.0.0',
-    
-    // Distribution (for build-specific tracking)
-    dist: '1',
-    
-    // Before send hook - Filter sensitive data
-    beforeSend: (event, hint) => {
-      // Remove user email from breadcrumbs/context if needed
-      if (event.user && event.user.email) {
-        event.user.email = event.user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
-      }
+  try {
+    Sentry.init({
+      dsn: SENTRY_DSN,
       
-      // Filter out specific errors you don't want to track
-      const error = hint.originalException;
-      if (error && typeof error === 'string') {
-        // Ignore network timeout errors
-        if (error.includes('Network request failed')) {
-          return null;
+      // Enable in production only
+      enabled: !__DEV__,
+      
+      // Set environment
+      environment: __DEV__ ? 'development' : 'production',
+      
+      // Sample rate for performance monitoring (10% of transactions)
+      tracesSampleRate: 0.1,
+      
+      // Enable native crash handling
+      enableNative: true,
+      enableNativeNagger: false,
+      
+      // Attach stack trace to all messages
+      attachStacktrace: true,
+      
+      // Set release version (update this with your app version)
+      release: 'armadio-digitale@1.0.0',
+      
+      // Distribution (for build-specific tracking)
+      dist: '1',
+      
+      // Before send hook - Filter sensitive data
+      beforeSend: (event, hint) => {
+        // Remove user email from breadcrumbs/context if needed
+        if (event.user && event.user.email) {
+          event.user.email = event.user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
         }
-      }
-      
-      return event;
-    },
-    
-    // Ignore specific errors
-    ignoreErrors: [
-      // React Native warnings
-      'Non-Error promise rejection captured',
-      'Warning: ',
-      
-      // Network errors (too noisy)
-      'Network request failed',
-      'Request failed with status code',
-      
-      // Firebase common errors
-      'auth/network-request-failed',
-    ],
-    
-    // Breadcrumbs (track navigation, console logs, etc.)
-    maxBreadcrumbs: 50,
-    
-    // Enable auto session tracking
-    enableAutoSessionTracking: true,
-    sessionTrackingIntervalMillis: 30000, // 30 seconds
-    
-    // Integrations
-    integrations: [
-      new Sentry.ReactNativeTracing({
-        // Enable automatic tracing of React Navigation
-        routingInstrumentation: new Sentry.ReactNavigationInstrumentation(),
         
-        // Trace network requests
-        tracingOrigins: ['localhost', 'firebasestorage.googleapis.com', 'firestore.googleapis.com'],
-      }),
-    ],
-  });
+        // Filter out specific errors you don't want to track
+        const error = hint.originalException;
+        if (error && typeof error === 'string') {
+          // Ignore network timeout errors
+          if (error.includes('Network request failed')) {
+            return null;
+          }
+        }
+        
+        return event;
+      },
+      
+      // Ignore specific errors
+      ignoreErrors: [
+        // React Native warnings
+        'Non-Error promise rejection captured',
+        'Warning: ',
+        
+        // Network errors (too noisy)
+        'Network request failed',
+        'Request failed with status code',
+        
+        // Firebase common errors
+        'auth/network-request-failed',
+      ],
+      
+      // Breadcrumbs (track navigation, console logs, etc.)
+      maxBreadcrumbs: 50,
+      
+      // Enable auto session tracking
+      enableAutoSessionTracking: true,
+      sessionTrackingIntervalMillis: 30000, // 30 seconds
+      
+      // Integrations - DISABLED IN PRODUCTION TO AVOID CRASH
+      // integrations: [
+      //   new Sentry.ReactNativeTracing({
+      //     routingInstrumentation: new Sentry.ReactNavigationInstrumentation(),
+      //     tracingOrigins: ['localhost', 'firebasestorage.googleapis.com', 'firestore.googleapis.com'],
+      //   }),
+      // ],
+    });
 
-  console.log('[Sentry] Initialized successfully');
+    console.log('[Sentry] Initialized successfully');
+  } catch (error) {
+    console.warn('[Sentry] Failed to initialize:', error.message);
+  }
 };
 
 // Manually capture exceptions
