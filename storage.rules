@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidImageSize() {
+      // Max 10MB per image
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // User images path
+    match /artifacts/{appId}/users/{userId}/{allPaths=**} {
+      // Only owner can read/write their images
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) 
+                   && isValidImageSize() 
+                   && isValidImageType();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Block all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

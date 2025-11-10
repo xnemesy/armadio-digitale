@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Artifacts collection (multi-tenancy support)
+    match /artifacts/{appId}/users/{userId} {
+      // User metadata document
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+      
+      // User items subcollection
+      match /items/{itemId} {
+        // Only authenticated user can access their own items
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) 
+                      && request.resource.data.keys().hasAll(['name', 'createdAt'])
+                      && request.resource.data.createdAt is timestamp;
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+      
+      // User outfits subcollection (future feature)
+      match /outfits/{outfitId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // User preferences subcollection
+      match /preferences/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Block all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

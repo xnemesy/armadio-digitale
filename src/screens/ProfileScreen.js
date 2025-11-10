@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone } from 'lucide-react-native';
+import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone, BarChart } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { APP_ID } from '../config/appConfig';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { SkeletonBlock } from '../components';
+import { getAnalyticsConsent, setAnalyticsConsent } from '../lib/analytics';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, signOut, resendEmailVerification, deleteAccount, loading: authLoading } = useAuth();
   const { themeMode, setTheme, tokens } = useTheme();
   const [itemsCount, setItemsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [loadingConsent, setLoadingConsent] = useState(true);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -23,6 +26,32 @@ const ProfileScreen = ({ navigation }) => {
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [user]);
+
+  useEffect(() => {
+    loadAnalyticsConsent();
+  }, []);
+
+  const loadAnalyticsConsent = async () => {
+    try {
+      const consent = await getAnalyticsConsent();
+      setAnalyticsEnabled(consent === true);
+    } catch (error) {
+      console.error('Error loading analytics consent:', error);
+    } finally {
+      setLoadingConsent(false);
+    }
+  };
+
+  const handleAnalyticsToggle = async (value) => {
+    try {
+      await setAnalyticsConsent(value);
+      setAnalyticsEnabled(value);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('Error updating analytics consent:', error);
+      Alert.alert('Errore', 'Impossibile aggiornare le preferenze');
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -100,28 +129,33 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const confirmDeleteAccount = () => {
-    Alert.alert(
-      'Conferma Finale',
-      'Digita "ELIMINA" per confermare',
-      [
-        { text: 'Annulla', style: 'cancel' },
-        {
-          text: 'Conferma',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await deleteAccount();
-            if (result.success) {
-              Alert.alert('✓ Account Eliminato', result.message);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else {
-              Alert.alert('Errore', result.error);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  const confirmDeleteAccount = async () => {
+    const result = await deleteAccount();
+    if (result.success) {
+      Alert.alert('✓ Account Eliminato', result.message, [
+        { text: 'OK', onPress: () => {} }
+      ]);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      // Check if re-authentication is needed
+      if (result.error.includes('login')) {
+        Alert.alert(
+          'Richiesta Re-autenticazione',
+          result.error + '\n\nVerrai reindirizzato al login.',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                await signOut();
+              }
             }
-          }
-        }
-      ]
-    );
+          ]
+        );
+      } else {
+        Alert.alert('Errore', result.error);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
   };
 
   return (
@@ -203,13 +237,30 @@ const ProfileScreen = ({ navigation }) => {
               <Text style={[styles.settingValue, { color: tokens.colors.textMuted }]}>Abilitate</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={[styles.settingItem, { borderBottomWidth: 0 }]}>
+            <TouchableOpacity style={[styles.settingItem, { borderBottomColor: tokens.colors.border }]}>
               <View style={styles.settingLeft}>
                 <Text style={styles.settingIcon}>📱</Text>
                 <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Feedback Tattile</Text>
               </View>
               <Text style={[styles.settingValue, { color: tokens.colors.textMuted }]}>Attivo</Text>
             </TouchableOpacity>
+
+            <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
+              <View style={styles.settingLeft}>
+                <BarChart size={20} color={tokens.colors.accent} strokeWidth={2} />
+                <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Analytics Anonimi</Text>
+              </View>
+              {loadingConsent ? (
+                <ActivityIndicator size="small" color={tokens.colors.textMuted} />
+              ) : (
+                <Switch
+                  value={analyticsEnabled}
+                  onValueChange={handleAnalyticsToggle}
+                  trackColor={{ false: tokens.colors.border, true: tokens.colors.accent }}
+                  thumbColor="#FFFFFF"
+                />
+              )}
+            </View>
           </View>
 
           <View style={[styles.legalCard, { backgroundColor: tokens.colors.surface, borderColor: tokens.colors.border }]}>
