@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 246 247 251;
+    --surface: 255 255 255;
+    --surface-light: 243 244 246;
+    --border: 229 231 235;
+    --text-primary: 17 24 39;
+    --text-secondary: 107 114 128;
+    --accent: 16 185 129;
+  }
+
+  .dark {
+    --bg: 18 18 18;
+    --surface: 26 26 26;
+    --surface-light: 42 42 42;
+    --border: 55 65 81;
+    --text-primary: 249 250 251;
+    --text-secondary: 209 213 219;
+    --accent: 16 185 129;
+  }
+
+  body {
+    @apply bg-[rgb(var(--bg))] text-[rgb(var(--text-primary))] transition-colors duration-200;
+  }
+}
+
+@layer utilities {
+  .surface {
+    @apply bg-[rgb(var(--surface))];
+  }
+
+  .surface-light {
+    @apply bg-[rgb(var(--surface-light))];
+  }
+
+  .text-primary {
+    @apply text-[rgb(var(--text-primary))];
+  }
+
+  .text-secondary {
+    @apply text-[rgb(var(--text-secondary))];
+  }
+
+  .border-custom {
+    @apply border-[rgb(var(--border))];
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-[rgb(var(--border))] rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-[rgb(var(--text-secondary))];
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
