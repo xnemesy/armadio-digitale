@@ -20,6 +20,7 @@ export default [
         console: 'readonly',
         fetch: 'readonly',
         __DEV__: 'readonly',
+        global: 'readonly',
         module: 'readonly',
         require: 'readonly',
         process: 'readonly',

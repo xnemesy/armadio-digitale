@@ -40,14 +40,14 @@ const ConsentDialog = ({ visible, onClose }) => {
           <View style={styles.header}>
             <Cookie size={32} color={tokens.colors.primary} strokeWidth={2} />
             <Text style={[styles.title, { color: tokens.colors.textPrimary }]}>
-              Privacy & Consenso
+              Privacy &amp; Consenso
             </Text>
           </View>
 
           {/* Content */}
           <View style={styles.content}>
             <Text style={[styles.description, { color: tokens.colors.textSecondary }]}>
-              Rispettiamo la tua privacy. Utilizziamo analytics anonimi per migliorare l'app.
+              Rispettiamo la tua privacy. Utilizziamo analytics anonimi per migliorare l&apos;app.
             </Text>
 
             {/* Analytics Toggle */}

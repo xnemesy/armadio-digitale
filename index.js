@@ -13,7 +13,6 @@ if (typeof global !== 'undefined' && !global.tokens) {
 
 // Load App AFTER the global fallback to prevent early ReferenceError
 // Using require defers module evaluation until after the fallback above
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const App = require('./App').default;
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
