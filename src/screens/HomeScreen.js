@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Modal, Animated } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
 import { Picker } from '@react-native-picker/picker';
@@ -88,21 +88,22 @@ const HomeScreen = ({ navigation, route }) => {
         saveSort();
     }, [sortBy]);
 
-        useEffect(() => {
+    useEffect(() => {
         if (!user || !user.uid) return;
         setLoadingItems(true);
-            const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-        const unsubscribe = firestore()
-            .collection(path)
-            .onSnapshot(snapshot => {
-                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-                setItems(data);
-                setLoadingItems(false);
-            }, err => {
-                console.error('Errore caricamento items:', err);
-                setLoadingItems(false);
-            });
+        const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+        const itemsCollection = collection(firestore(), path);
+    
+        const unsubscribe = onSnapshot(itemsCollection, snapshot => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+            setItems(data);
+            setLoadingItems(false);
+        }, err => {
+            console.error('Errore caricamento items:', err);
+            setLoadingItems(false);
+        });
+    
         return () => unsubscribe();
     }, [user]);
 

@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, Acti
 import { Camera, Image as ImageIcon, ChevronLeft } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import storage from '@react-native-firebase/storage';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
 import { classifyClothingFromUri } from '../ml/executorchClient';
 import { ML_CONFIG } from '../ml/config';
@@ -90,11 +90,9 @@ const AddItemScreen = ({ navigation, route }) => {
     };
 
     const checkDuplicate = async (aiMetadata) => {
-            const snapshot = await firestore()
-                .collection(`artifacts/${APP_ID}/users/${user.uid}/items`)
-            .where('category', '==', aiMetadata.category)
-            .where('mainColor', '==', aiMetadata.mainColor)
-            .get();
+        const itemsRef = collection(firestore(), `artifacts/${APP_ID}/users/${user.uid}/items`);
+        const q = query(itemsRef, where('category', '==', aiMetadata.category), where('mainColor', '==', aiMetadata.mainColor));
+        const snapshot = await getDocs(q);
         if (!snapshot.empty) return snapshot.docs[0].data();
         return null;
     };
@@ -156,9 +154,10 @@ const AddItemScreen = ({ navigation, route }) => {
                 userId: user.uid,
                 storagePath: filePath,
                 thumbnailUrl: fullSizeUrl,
-                createdAt: firestore.FieldValue.serverTimestamp(),
+                createdAt: serverTimestamp(),
             };
-            await firestore().collection(`artifacts/${APP_ID}/users/${user.uid}/items`).doc(itemId).set(itemData);
+            const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${user.uid}/items`, itemId);
+            await setDoc(itemRef, itemData);
             Alert.alert('Successo', 'Capo aggiunto!');
             navigation.goBack();
         } catch (e) {
@@ -243,4 +242,3 @@ const AddItemScreen = ({ navigation, route }) => {
 };
 
 export default AddItemScreen;
-

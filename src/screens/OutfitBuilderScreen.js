@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
 import { ChevronLeft, Zap } from 'lucide-react-native';
 import { getOutfitSuggestion } from '../lib/ai';
 import { APP_ID } from '../config/appConfig';
@@ -18,7 +18,8 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
     useEffect(() => {
         if (!user?.uid) return;
         const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-        const unsub = firestore().collection(path).onSnapshot(s => {
+        const itemsCollection = collection(firestore(), path);
+        const unsub = onSnapshot(itemsCollection, s => {
             setItems(s.docs.map(d => ({ id: d.id, ...d.data() })));
             setLoadingItems(false);
         }, () => setLoadingItems(false));
@@ -113,4 +114,3 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
     );
 };
 export default OutfitBuilderScreen;
-

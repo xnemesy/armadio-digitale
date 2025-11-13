@@ -1,23 +1,30 @@
-import analytics from '@react-native-firebase/analytics';
+import analytics, {
+  setAnalyticsCollectionEnabled,
+  logScreenView as rnLogScreenView,
+  logEvent as rnLogEvent,
+  setUserProperty as rnSetUserProperty,
+  setUserId as rnSetUserId,
+} from '@react-native-firebase/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ANALYTICS_CONSENT_KEY = '@analytics_consent';
 
 // Initialize analytics consent state
 let analyticsEnabled = false;
+const analyticsInstance = analytics();
 
 export const initializeAnalytics = async () => {
   try {
     const consent = await AsyncStorage.getItem(ANALYTICS_CONSENT_KEY);
-    
+
     if (consent === null) {
       // First time user - show consent dialog
       return { needsConsent: true, enabled: false };
     }
-    
+
     analyticsEnabled = consent === 'true';
-    await analytics().setAnalyticsCollectionEnabled(analyticsEnabled);
-    
+    await setAnalyticsCollectionEnabled(analyticsInstance, analyticsEnabled);
+
     console.log(`[Analytics] Initialized - Enabled: ${analyticsEnabled}`);
     return { needsConsent: false, enabled: analyticsEnabled };
   } catch (error) {
@@ -31,8 +38,8 @@ export const setAnalyticsConsent = async (enabled) => {
   try {
     await AsyncStorage.setItem(ANALYTICS_CONSENT_KEY, enabled.toString());
     analyticsEnabled = enabled;
-    await analytics().setAnalyticsCollectionEnabled(enabled);
-    
+    await setAnalyticsCollectionEnabled(analyticsInstance, enabled);
+
     console.log(`[Analytics] Consent saved - Enabled: ${enabled}`);
     return { success: true };
   } catch (error) {
@@ -55,9 +62,9 @@ export const getAnalyticsConsent = async () => {
 // Log screen view
 export const logScreenView = async (screenName, screenClass) => {
   if (!analyticsEnabled) return;
-  
+
   try {
-    await analytics().logScreenView({
+    await rnLogScreenView(analyticsInstance, {
       screen_name: screenName,
       screen_class: screenClass || screenName,
     });
@@ -69,9 +76,9 @@ export const logScreenView = async (screenName, screenClass) => {
 // Log custom event
 export const logEvent = async (eventName, params = {}) => {
   if (!analyticsEnabled) return;
-  
+
   try {
-    await analytics().logEvent(eventName, params);
+    await rnLogEvent(analyticsInstance, eventName, params);
   } catch (error) {
     console.error(`[Analytics] Error logging event ${eventName}:`, error);
   }
@@ -169,9 +176,9 @@ export const logError = (errorType, errorMessage) => {
 // Set user properties (demographics, preferences)
 export const setUserProperty = async (name, value) => {
   if (!analyticsEnabled) return;
-  
+
   try {
-    await analytics().setUserProperty(name, value);
+    await rnSetUserProperty(analyticsInstance, name, value);
   } catch (error) {
     console.error(`[Analytics] Error setting user property ${name}:`, error);
   }
@@ -180,11 +187,11 @@ export const setUserProperty = async (name, value) => {
 // Set user ID (call after login)
 export const setUserId = async (userId) => {
   if (!analyticsEnabled) return;
-  
+
   try {
     // Hash or anonymize user ID for privacy
     const anonymousId = userId.substring(0, 8); // Use only first 8 chars
-    await analytics().setUserId(anonymousId);
+    await rnSetUserId(analyticsInstance, anonymousId);
   } catch (error) {
     console.error('[Analytics] Error setting user ID:', error);
   }

@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, Alert, TextInput, ScrollView, Plat
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { ChevronLeft } from 'lucide-react-native';
 import storage from '@react-native-firebase/storage';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { doc, setDoc, deleteDoc } from '@react-native-firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
@@ -17,10 +17,8 @@ const DetailScreen = ({ navigation, route }) => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await firestore()
-        .collection(`artifacts/${APP_ID}/users/${item.userId}/items`)
-        .doc(item.id)
-        .set(editedMetadata, { merge: true });
+      const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
+      await setDoc(itemRef, editedMetadata, { merge: true });
       setEditing(false);
       Alert.alert('Successo', 'Modifiche salvate!');
     } catch (e) {
@@ -45,10 +43,8 @@ const DetailScreen = ({ navigation, route }) => {
               if (item.storagePath) {
                 await storage().ref(item.storagePath).delete();
               }
-              await firestore()
-                .collection(`artifacts/${APP_ID}/users/${item.userId}/items`)
-                .doc(item.id)
-                .delete();
+              const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
+              await deleteDoc(itemRef);
               Alert.alert('Successo', 'Capo eliminato');
               navigation.goBack();
             } catch (e) {
@@ -140,4 +136,3 @@ const DetailScreen = ({ navigation, route }) => {
 };
 
 export default DetailScreen;
-

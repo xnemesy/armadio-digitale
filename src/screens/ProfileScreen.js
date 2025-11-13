@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone, BarChart } from 'lucide-react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, getDocs } from '@react-native-firebase/firestore';
 import { APP_ID } from '../config/appConfig';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,7 +21,8 @@ const ProfileScreen = ({ navigation }) => {
   useEffect(() => {
     if (!user?.uid) return;
     const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-    firestore().collection(path).get().then(s => {
+    const itemsCollection = collection(firestore(), path);
+    getDocs(itemsCollection).then(s => {
       setItemsCount(s.size);
       setLoading(false);
     }).catch(() => setLoading(false));

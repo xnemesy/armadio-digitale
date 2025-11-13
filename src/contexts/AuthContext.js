@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, getDocs } from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import { Alert, Platform } from 'react-native';
 import { APP_ID } from '../config/appConfig';
@@ -137,7 +137,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       await googleSignIn();
       return { success: true };
-    } catch (error) {
+    } catch (error).
       console.error('Google sign in error:', error);
       return { success: false, error: error.message || 'Errore durante il login con Google' };
     } finally {
@@ -220,7 +220,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Resend email verification
-  const resendEmailVerification = async () => {
+  const resendEmailVerification = async ().
     try {
       const currentUser = auth().currentUser;
       if (!currentUser) {
@@ -249,9 +249,11 @@ export const AuthProvider = ({ children }) => {
 
       const userId = currentUser.uid;
       const userPath = `artifacts/${APP_ID}/users/${userId}`;
+      const itemsPath = `${userPath}/items`;
 
       // Step 1: Delete all user items from Firestore
-      const itemsSnapshot = await firestore().collection(`${userPath}/items`).get();
+      const itemsCollection = collection(firestore(), itemsPath);
+      const itemsSnapshot = await getDocs(itemsCollection);
       const deletePromises = [];
 
       // Delete each item and its associated images
@@ -335,7 +337,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</Auth.Provider>;
 };
 
 export const useAuth = () => {

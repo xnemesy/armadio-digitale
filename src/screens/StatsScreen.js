@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarChart3 } from 'lucide-react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 import { SkeletonBlock } from '../components';
@@ -16,8 +16,9 @@ const StatsScreen = ({ route }) => {
 
   useEffect(() => {
     if (!user?.uid) return;
-  const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-    const unsub = firestore().collection(path).onSnapshot(s => {
+    const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+    const itemsCollection = collection(firestore(), path);
+    const unsub = onSnapshot(itemsCollection, s => {
       const items = s.docs.map(d => d.data());
       const byCategory = {}, byColor = {}, byBrand = {}, bySize = {};
       items.forEach(it => {
@@ -111,4 +112,3 @@ const createStyles = tokens => StyleSheet.create({
 });
 
 export default StatsScreen;
-
