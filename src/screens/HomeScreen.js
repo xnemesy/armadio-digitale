@@ -164,8 +164,10 @@ const HomeScreen = ({ navigation, route }) => {
         }).start(() => setIsSearchModalVisible(false));
     };
 
-    const renderItem = ({ item }) => (
-        <ItemCard item={item} onPress={() => navigation.navigate('Detail', { item })} />
+    const renderItem = ({ item, index }) => (
+        <View style={styles.cardWrapper}>
+            <ItemCard item={item} onPress={() => navigation.navigate('Detail', { item })} />
+        </View>
     );
 
     if (loadingItems) {
@@ -224,8 +226,8 @@ const HomeScreen = ({ navigation, route }) => {
                     renderItem={renderItem}
                     keyExtractor={i => i.id}
                     numColumns={2}
-                    columnWrapperStyle={{ paddingHorizontal: 8, justifyContent: 'space-between' }}
-                    contentContainerStyle={{ paddingBottom: 180, paddingTop: 8 }}
+                    columnWrapperStyle={styles.row}
+                    contentContainerStyle={styles.gridContainer}
                     showsVerticalScrollIndicator={false}
                 />
             )}
@@ -407,6 +409,23 @@ const styles = StyleSheet.create({
         height: 36, 
         borderRadius: 6 
     },
+    
+    // Grid Layout - Fixed
+    gridContainer: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 180,
+    },
+    row: {
+        justifyContent: 'space-between',
+        marginBottom: 16,
+        gap: 12,
+    },
+    cardWrapper: {
+        flex: 1,
+        maxWidth: '48%',
+    },
+    
     loadingSkeletonContainer: {
         flex: 1,
         paddingTop: 60,

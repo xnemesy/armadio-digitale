@@ -17,7 +17,8 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.armadiodigitale.app",
       // Usa file rigenerato da script restore-firebase-config (oppure var env diretta)
-      googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist",
+      // Fallback a .example per evitare errori in emulatore
+      googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST || "./GoogleService-Info.plist.example",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }

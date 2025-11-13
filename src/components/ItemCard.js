@@ -43,13 +43,11 @@ const ItemCard = ({ item, onPress }) => {
 
 const styles = StyleSheet.create({
     card: {
-        flex: 1,
-        margin: 5,
         overflow: 'hidden',
     },
     image: {
         width: '100%',
-        height: 150,
+        aspectRatio: 3 / 4,
     },
 });
 
