@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, StyleSheet, Text, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import PressableScale from '../components/PressableScale';
 
 const Pagination = ({ data, currentIndex, tokens }) => {
+  const styles = getStyles(tokens); // Pagination is small, re-creating styles here is acceptable
   return (
     <View style={styles.pagination}>
       {data.map((_, index) => {
@@ -28,7 +29,9 @@ const Pagination = ({ data, currentIndex, tokens }) => {
   );
 };
 
-const OnboardingButton = ({ isLastScreen, onPress, tokens }) => (
+const OnboardingButton = ({ isLastScreen, onPress, tokens }) => {
+  const styles = getStyles(tokens); // Same for this small component
+  return (
   <PressableScale onPress={onPress}>
     <View style={[styles.nextButton, { backgroundColor: tokens.colors.primary }]}>
       <Text style={[styles.nextButtonText, { color: tokens.colors.textOnPrimary }]}>
@@ -36,19 +39,19 @@ const OnboardingButton = ({ isLastScreen, onPress, tokens }) => (
       </Text>
     </View>
   </PressableScale>
-);
+)};
 
 const OnboardingNavigator = ({ onComplete }) => {
   const { tokens } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef(null);
 
-  const handleSkip = () => {
+  const handleSkip = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onComplete();
-  };
+  }, [onComplete]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (currentIndex < onboardingSteps.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -56,7 +59,7 @@ const OnboardingNavigator = ({ onComplete }) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete();
     }
-  };
+  }, [currentIndex, onComplete]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     if (viewableItems.length > 0) {
@@ -67,8 +70,7 @@ const OnboardingNavigator = ({ onComplete }) => {
   const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
   const isLastScreen = currentIndex === onboardingSteps.length - 1;
 
-  // Use a dynamic StyleSheet function to access tokens
-  const styles = getStyles(tokens);
+  const styles = useMemo(() => getStyles(tokens), [tokens]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: tokens.colors.background }]}>

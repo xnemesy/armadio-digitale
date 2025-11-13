@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -40,8 +40,7 @@ const OnboardingScreen = ({ item, currentIndex, itemIndex }) => {
     transform: [{ translateY: textTranslateY.value }],
   }));
 
-  // Define styles inside the component to access tokens
-  const styles = StyleSheet.create({
+  const styles = useMemo(() => StyleSheet.create({
     container: {
       flex: 1,
       justifyContent: 'center',
@@ -70,7 +69,7 @@ const OnboardingScreen = ({ item, currentIndex, itemIndex }) => {
       lineHeight: tokens.typography.sizes.md * 1.5,
       color: tokens.colors.textSecondary,
     },
-  });
+  }), [tokens, width]);
 
   return (
     <View style={styles.container}>
