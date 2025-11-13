@@ -22,8 +22,11 @@ if (typeof global !== 'undefined' && !global.tokens) {
 import { initializeSentry, setUserContext, clearUserContext } from './src/lib/sentry';
 import { initializeAnalytics, setUserId } from './src/lib/analytics';
 import ConsentDialog from './src/components/ConsentDialog';
+import OnboardingNavigator from './src/navigation/OnboardingNavigator';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createNativeStackNavigator();
+const ONBOARDING_STORAGE_KEY = '@hasCompletedOnboarding';
 
 // Initialize Sentry at app startup
 initializeSentry();
@@ -35,18 +38,36 @@ const AppNavigator = () => {
   const { user, initializing } = useAuth();
   const { tokens, isLoading: themeLoading } = useTheme();
   const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [isFirstLaunch, setIsFirstLaunch] = useState(null);
+
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      try {
+        const hasCompletedOnboarding = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
+        setIsFirstLaunch(hasCompletedOnboarding !== 'true');
+      } catch (error) {
+        // Assume not first launch if storage fails
+        setIsFirstLaunch(false);
+        console.warn('Error reading onboarding status from AsyncStorage:', error);
+      }
+    };
+    checkOnboardingStatus();
+  }, []);
 
   // Initialize analytics and check consent on app start
   useEffect(() => {
     const setupAnalytics = async () => {
-      const { needsConsent } = await initializeAnalytics();
-      // Show consent dialog for first-time users (not authenticated yet)
-      if (needsConsent && !user) {
-        setShowConsentDialog(true);
+      // Only check for consent if onboarding is done
+      if (isFirstLaunch === false) {
+        const { needsConsent } = await initializeAnalytics();
+        // Show consent dialog for first-time users (not authenticated yet)
+        if (needsConsent && !user) {
+          setShowConsentDialog(true);
+        }
       }
     };
     setupAnalytics();
-  }, [user]);
+  }, [user, isFirstLaunch]);
 
   // Set Sentry user context and Analytics user ID when user logs in/out
   useEffect(() => {
@@ -62,7 +83,7 @@ const AppNavigator = () => {
   // Hide splash screen when loading complete
   useEffect(() => {
     const hideSplash = async () => {
-      if (!initializing && !themeLoading) {
+      if (!initializing && !themeLoading && isFirstLaunch !== null) {
         try {
           await SplashScreen.hideAsync();
         } catch (error) {
@@ -71,9 +92,20 @@ const AppNavigator = () => {
       }
     };
     hideSplash();
-  }, [initializing, themeLoading]);
+  }, [initializing, themeLoading, isFirstLaunch]);
 
-  if (initializing || themeLoading) {
+  const handleOnboardingComplete = async () => {
+    try {
+      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      setIsFirstLaunch(false);
+    } catch (error) {
+      console.warn('Error saving onboarding status to AsyncStorage:', error);
+      // Still proceed to app even if storage fails
+      setIsFirstLaunch(false);
+    }
+  };
+
+  if (initializing || themeLoading || isFirstLaunch === null) {
     return (
       <View style={[styles.fullScreenCenter, { backgroundColor: tokens.colors.background }]}>
         <StatusBar barStyle={tokens.isDark ? 'light-content' : 'dark-content'} backgroundColor={tokens.colors.background} />
@@ -87,6 +119,10 @@ const AppNavigator = () => {
     setShowConsentDialog(false);
     // Analytics consent is already saved in ConsentDialog component
   };
+
+  if (isFirstLaunch) {
+    return <OnboardingNavigator onComplete={handleOnboardingComplete} />;
+  }
 
   return (
     <NavigationContainer>

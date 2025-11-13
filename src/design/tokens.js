@@ -74,6 +74,7 @@ export const darkColors = {
   navBackground: '#1A1A1A',
   navInactive: '#6B7280',
   navActive: '#10B981',
+  textOnPrimary: '#FFFFFF',
 };
 
 export const lightColors = {
@@ -98,6 +99,7 @@ export const lightColors = {
   navBackground: '#FFFFFF',
   navInactive: '#9CA3AF',
   navActive: '#10B981',
+  textOnPrimary: '#FFFFFF',
 };
 
 // BACKWARD COMPATIBILITY ADAPTER
