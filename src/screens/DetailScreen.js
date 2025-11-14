@@ -60,7 +60,7 @@ const DetailScreen = ({ navigation, route }) => {
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: tokens.colors.background },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
     backButton: { paddingRight: 12, paddingVertical: 4 },
     title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
     image: { width: '100%', height: 400, resizeMode: 'cover', backgroundColor: tokens.colors.surface },

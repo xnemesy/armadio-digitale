@@ -323,7 +323,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1 },
   headerTitle: { fontSize: 20, fontWeight: '700' },
   scrollContent: { flex: 1, paddingHorizontal: 20 },
   userCard: { borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, borderWidth: 1 },

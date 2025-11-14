@@ -1,15 +1,25 @@
 const functions = require('@google-cloud/functions-framework');
 const { SecretManagerServiceClient } = require('@google-cloud/secret-manager');
+const admin = require('firebase-admin');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-// Firestore will replace Redis for caching to reduce cost and simplify infra
+// Firestore replaces Redis for caching to reduce cost and simplify infra
 const { Firestore, Timestamp } = require('@google-cloud/firestore');
-// (Redis left temporarily in dependencies for graceful teardown; code path removed)
+// Redis non è più utilizzato né presente tra le dipendenze
 
 // Initialize Firestore client (auto uses GOOGLE_APPLICATION_CREDENTIALS / metadata credentials)
 const firestore = new Firestore();
 
 // Inizializza Secret Manager client
 const secretClient = new SecretManagerServiceClient();
+
+// Inizializza Firebase Admin (per verifica ID token)
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+} catch (e) {
+  console.warn('Firebase Admin init warning:', e.message);
+}
 
 // Cache per l'API key (evita chiamate ripetute a Secret Manager)
 let cachedApiKey = null;
@@ -54,6 +64,19 @@ function checkRateLimit(clientIp) {
   rateLimitMap.set(clientIp, recentTimestamps);
   
   return { limited: false };
+}
+
+/**
+ * Verifica Bearer token Firebase (ID token) dall'header Authorization
+ */
+async function verifyFirebaseAuth(req) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'] || '';
+  if (!authHeader.startsWith('Bearer ')) {
+    throw new Error('Missing Bearer token');
+  }
+  const idToken = authHeader.slice(7);
+  const decoded = await admin.auth().verifyIdToken(idToken);
+  return decoded; // contiene uid, email, ecc.
 }
 
 /**
@@ -500,5 +523,127 @@ IMPORTANTE: Rispondi SOLO con il JSON, nessun altro testo.`;
       error: error.message,
       recommendations: []
     });
+  }
+});
+
+/**
+ * Cloud Function HTTP endpoint per suggerimenti outfit con Gemini
+ *
+ * Request Body:
+ * {
+ *   "availableItems": [{ "name": "...", "category": "...", "mainColor": "...", "brand": "...", "season": "..." }],
+ *   "userRequest": "Outfit per cena informale"
+ * }
+ *
+ * Response:
+ * {
+ *   "success": true,
+ *   "suggestion": "testo con i suggerimenti outfit"
+ * }
+ */
+functions.http('generateOutfit', async (req, res) => {
+  const startTime = Date.now();
+  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
+
+  const logContext = {
+    clientIp,
+    method: req.method,
+    userAgent: req.headers['user-agent'] || 'unknown',
+    timestamp: new Date().toISOString()
+  };
+
+  console.log('👗 Incoming outfit request:', JSON.stringify(logContext));
+
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  const rateLimitResult = checkRateLimit(clientIp);
+  if (rateLimitResult.limited) {
+    res.set('Retry-After', rateLimitResult.retryAfter.toString());
+    return res.status(429).json({
+      success: false,
+      error: 'Troppe richieste',
+      retryAfter: rateLimitResult.retryAfter
+    });
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({
+      success: false,
+      error: 'Metodo non consentito. Usa POST.'
+    });
+  }
+
+  try {
+    // Autenticazione Firebase via Bearer token
+    let authUser;
+    try {
+      authUser = await verifyFirebaseAuth(req);
+    } catch (authErr) {
+      return res.status(401).json({ success: false, error: 'Non autenticato' });
+    }
+
+    const { availableItems, userRequest } = req.body || {};
+
+    if (!Array.isArray(availableItems) || availableItems.length === 0) {
+      return res.status(400).json({ success: false, error: 'Parametro availableItems mancante o vuoto' });
+    }
+    if (!userRequest || typeof userRequest !== 'string') {
+      return res.status(400).json({ success: false, error: 'Parametro userRequest mancante' });
+    }
+
+    // Limita inventario per prompt safety
+    const limitedItems = availableItems.slice(0, 60);
+    const inventory = limitedItems
+      .map((it, idx) => {
+        const name = (it.name || '').toString().trim();
+        const category = (it.category || '').toString().trim();
+        const color = (it.mainColor || it.color || '').toString().trim();
+        const brand = (it.brand || '').toString().trim();
+        return `${idx + 1}. ${name || category} | Cat: ${category} | Col: ${color} | Brand: ${brand}`;
+      })
+      .join('\n');
+
+    const apiKey = await getGeminiApiKey();
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+
+    const systemInstruction = `Sei un fashion stylist personale per l'app Armadio Digitale.
+Devi creare un outfit coerente usando ESCLUSIVAMENTE i capi forniti nell'inventario.
+Rispetta stagione e contesto. Se mancano elementi (es. cappotto), proponi alternative dall'inventario.
+Rispondi in italiano, tono amichevole, sintetico, con elenco puntato dei capi scelti.
+Non inventare capi non presenti. Se l'inventario è insufficiente, spiega brevemente cosa manca.`;
+
+    const userPrompt = `Occasione/brief: ${userRequest}\n\nInventario disponibile (usa solo questi capi):\n${inventory}`;
+
+    console.log('👗 Generating outfit with inventory size:', limitedItems.length);
+
+    const geminiStartTime = Date.now();
+    const result = await model.generateContent({
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ parts: [{ text: userPrompt }] }]
+    });
+    const geminiDuration = Date.now() - geminiStartTime;
+
+    const response = await result.response;
+    const text = response.text();
+
+    console.log('🤖 Outfit response:', JSON.stringify({ duration: geminiDuration, length: text.length }));
+
+    const totalDuration = Date.now() - startTime;
+    return res.status(200).json({
+      success: true,
+      suggestion: text,
+      metadata: { processingTime: totalDuration, inventoryCount: limitedItems.length, uid: authUser.uid }
+    });
+  } catch (error) {
+    console.error('❌ Outfit error:', error.message);
+    return res.status(500).json({ success: false, error: error.message, suggestion: '' });
   }
 });

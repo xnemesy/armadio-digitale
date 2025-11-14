@@ -49,18 +49,17 @@ npm install --legacy-peer-deps
 
 ### 3. Configura variabili d'ambiente
 
-Crea un file `.env` nella root del progetto:
+Crea un file `.env` nella root del progetto (minimo necessario per il client):
 
 ```env
-# Gemini API Key (per analisi AI immagini)
-EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-
-# Firebase Web API Key
+# Firebase Web API Key (client)
 EXPO_PUBLIC_FIREBASE_API_KEY=your_firebase_web_api_key_here
 
 # APP_ID (opzionale, default: armadio-digitale)
 APP_ID=armadio-digitale
 ```
+
+Nota: la chiave Gemini NON è più necessaria sul client. È gestita lato server tramite Secret Manager.
 
 **APP_ID**: Usato per namespace Firestore/Storage paths (`artifacts/${APP_ID}/users/${uid}/items`). Permette multi-tenancy o ambienti separati (dev/staging/prod).
 
@@ -226,16 +225,19 @@ Vedi [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → Design System per strate
 
 ## 🔑 Gestione API Keys
 
-Le chiavi API sono gestite tramite variabili d'ambiente per sicurezza:
+- **Mai committare** `.env`, `google-services.json`, `GoogleService-Info.plist`.
+- Usa i file `.example` per documentare le chiavi necessarie.
+- Client: richiede solo `EXPO_PUBLIC_FIREBASE_API_KEY` (e opzionalmente `APP_ID`).
+- Gemini: gestita lato server con **Google Secret Manager** (nessuna chiave nel bundle).
 
-1. **Mai committare** `.env`, `google-services.json`, `GoogleService-Info.plist`
-2. Usa i file `.example` per documentare le chiavi necessarie
-3. Per production, usa EAS Secrets:
+Aggiornare la chiave Gemini su Secret Manager (CLI):
 
-```bash
-eas secret:create --name EXPO_PUBLIC_GEMINI_API_KEY --value your_key
-eas secret:create --name EXPO_PUBLIC_FIREBASE_API_KEY --value your_key
-eas secret:create --name APP_ID --value armadio-digitale
+```pwsh
+$env:CLOUDSDK_CORE_PROJECT="armadiodigitale"
+$TMP = New-TemporaryFile
+Set-Content -Path $TMP -NoNewline -Value "<nuova_chiave_gemini>"
+gcloud secrets versions add gemini-api-key --data-file=$TMP
+Remove-Item $TMP
 ```
 
 **APP_ID** viene letto da:
@@ -250,7 +252,11 @@ eas secret:create --name APP_ID --value armadio-digitale
 Verifica che `google-services.json` (Android) e `GoogleService-Info.plist` (iOS) siano nella root del progetto.
 
 ### Errore: "Gemini API key missing"
-Verifica che `.env` contenga `EXPO_PUBLIC_GEMINI_API_KEY` e che `expo-constants` lo carichi correttamente.
+La chiave è lato server. Verifica che il secret `gemini-api-key` esista e che le Cloud Functions siano state deployate correttamente.
+```pwsh
+gcloud secrets describe gemini-api-key --project armadiodigitale
+gcloud functions describe generateOutfit --region europe-west1 --project armadiodigitale
+```
 
 ### Build fallisce con React Native Firebase
 Assicurati di usare `expo-dev-client`:
@@ -336,8 +342,15 @@ Target coverage:
   - Prompt specializzato per estrarre modelli specifici (es: "Air Jordan 4 Retro Bred Reimagined")
   - Identifica sotto-marche (es: "Nike Jordan" invece di solo "Nike")
   - Riconosce colorway e sfumature precise (es: "Nero Lucido/Rosso")
-  - Caching Redis (7 giorni) + rate limiting (10 req/min per IP)
-  - Endpoint: `europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage`
+  - Caching Firestore (7 giorni) + rate limiting (10 req/min per IP)
+  - Endpoints:
+    - `europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage`
+    - `europe-west1-armadiodigitale.cloudfunctions.net/generateOutfit` (richiede ID token Firebase)
+
+### Sicurezza endpoint AI
+
+- `generateOutfit` richiede autenticazione: invia `Authorization: Bearer <ID_TOKEN>` (Firebase Auth).
+- Il client la include automaticamente da `src/lib/ai.js` se l’utente è loggato.
 - **Duplicati**: Sistema automatico di rilevamento capi simili in `AddItemScreen`
 - **Debounced Search**: Ricerca con delay 300ms per ridurre re-render (lodash.debounce)
 - **Filter Persistence**: Filtri e sorting salvati in AsyncStorage (`@armadio_filters`, `@armadio_sort`)

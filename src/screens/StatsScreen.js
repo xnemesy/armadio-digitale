@@ -98,7 +98,7 @@ const StatsScreen = ({ route }) => {
 const createStyles = tokens => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: tokens.colors.background },
   container: { flex: 1, backgroundColor: tokens.colors.background },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
   headerTitle: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
   scrollContent: { flex: 1, paddingHorizontal: 20 },
   totalCard: { backgroundColor: tokens.colors.surface, borderRadius: 16, padding: 24, alignItems: 'center', marginTop: 20, borderWidth: 1, borderColor: tokens.colors.border },
