@@ -46,9 +46,9 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
         title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
         inputArea: { margin: 16, padding: 15, backgroundColor: tokens.colors.surface, borderRadius: 12, borderWidth: 1, borderColor: tokens.colors.border },
         textarea: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, borderRadius: 8, color: tokens.colors.textPrimary, padding: 12, minHeight: 100, textAlignVertical: 'top' },
-        generateButton: { marginTop: 12, backgroundColor: tokens.colors.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
-        resultBox: { margin: 16, padding: 20, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.primary },
-        resultTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.primary, marginBottom: 8 },
+        generateButton: { marginTop: 12, backgroundColor: tokens.colors.accent, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+        resultBox: { margin: 16, padding: 20, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.accent },
+        resultTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.accent, marginBottom: 8 },
         resultText: { color: tokens.colors.textPrimary, fontSize: 15, lineHeight: 22 },
         inventoryPreview: { marginHorizontal: 16, padding: 15, backgroundColor: tokens.colors.surface, borderRadius: 8, borderWidth: 1, borderColor: tokens.colors.border },
         inventoryTitle: { fontSize: 15, fontWeight: '600', color: tokens.colors.textSecondary, marginBottom: 8 },
@@ -61,9 +61,9 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <ChevronLeft size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+                    <ChevronLeft size={24} color={tokens.colors.accent} strokeWidth={2.5} />
                 </TouchableOpacity>
-                <Text style={styles.title}><Zap size={20} color={tokens.colors.primary} /> Outfit Builder AI</Text>
+                <Text style={styles.title}><Zap size={20} color={tokens.colors.accent} /> Outfit Builder AI</Text>
             </View>
             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }}>
                 <View style={styles.inputArea}>
@@ -94,7 +94,7 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                 )}
                 {loadingItems ? (
                     <View style={styles.inventoryPreview}>
-                        <ActivityIndicator size="small" color={tokens.colors.primary} />
+                        <ActivityIndicator size="small" color={tokens.colors.accent} />
                         <Text style={styles.note}>Caricamento capi...</Text>
                     </View>
                 ) : (

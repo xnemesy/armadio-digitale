@@ -5,12 +5,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
 import { Picker } from '@react-native-picker/picker';
 import { Search, X } from 'lucide-react-native';
-import { ItemCard, PressableScale, SkeletonBlock } from '../components';
+import { ItemCard, PressableScale, SkeletonBlock, OnboardingModal } from '../components';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
 const FILTER_STORAGE_KEY = '@armadio_filters';
 const SORT_STORAGE_KEY = '@armadio_sort';
+const ONBOARDING_STORAGE_KEY = '@armadio_onboarding_shown';
 
 // Enhanced HomeScreen with filters, debounced search, sorting, and persistence
 const HomeScreen = ({ navigation, route }) => {
@@ -18,13 +19,14 @@ const HomeScreen = ({ navigation, route }) => {
     const { tokens } = useTheme();
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
-    const [filter, setFilter] = useState({ text: '', category: '', color: '', brand: '' });
+    const [filter, setFilter] = useState({ text: '', categories: [], colors: [], brands: [] });
     const [debouncedText, setDebouncedText] = useState('');
     const [sortBy, setSortBy] = useState('date'); // 'date' | 'name' | 'brand'
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
     const [brands, setBrands] = useState([]);
     const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+    const [isOnboardingVisible, setIsOnboardingVisible] = useState(false);
     const textInputRef = useRef(null);
     const modalAnimation = useRef(new Animated.Value(0)).current;
 
@@ -45,9 +47,10 @@ const HomeScreen = ({ navigation, route }) => {
     useEffect(() => {
         const loadPersistedState = async () => {
             try {
-                const [savedFilters, savedSort] = await Promise.all([
+                const [savedFilters, savedSort, onboardingShown] = await Promise.all([
                     AsyncStorage.getItem(FILTER_STORAGE_KEY),
                     AsyncStorage.getItem(SORT_STORAGE_KEY),
+                    AsyncStorage.getItem(ONBOARDING_STORAGE_KEY),
                 ]);
                 if (savedFilters) {
                     const parsed = JSON.parse(savedFilters);
@@ -56,6 +59,10 @@ const HomeScreen = ({ navigation, route }) => {
                 }
                 if (savedSort) {
                     setSortBy(savedSort);
+                }
+                // Show onboarding if first time
+                if (!onboardingShown) {
+                    setTimeout(() => setIsOnboardingVisible(true), 800);
                 }
             } catch (error) {
                 console.warn('Error loading persisted state:', error);
@@ -117,9 +124,9 @@ const HomeScreen = ({ navigation, route }) => {
         let filtered = items.filter(item => {
             const text = debouncedText.toLowerCase();
             const matchesText = !text || item.name?.toLowerCase().includes(text) || item.brand?.toLowerCase().includes(text);
-            const matchesCategory = !filter.category || item.category === filter.category;
-            const matchesColor = !filter.color || item.mainColor === filter.color;
-            const matchesBrand = !filter.brand || item.brand === filter.brand;
+            const matchesCategory = filter.categories.length === 0 || filter.categories.includes(item.category);
+            const matchesColor = filter.colors.length === 0 || filter.colors.includes(item.mainColor);
+            const matchesBrand = filter.brands.length === 0 || filter.brands.includes(item.brand);
             return matchesText && matchesCategory && matchesColor && matchesBrand;
         });
 
@@ -140,7 +147,7 @@ const HomeScreen = ({ navigation, route }) => {
     }, [items, debouncedText, filter, sortBy]);
 
     const clearFilters = () => {
-        setFilter({ text: '', category: '', color: '', brand: '' });
+        setFilter({ text: '', categories: [], colors: [], brands: [] });
         setDebouncedText('');
         if (textInputRef.current) {
             textInputRef.current.clear();
@@ -163,6 +170,15 @@ const HomeScreen = ({ navigation, route }) => {
             duration: 200,
             useNativeDriver: true,
         }).start(() => setIsSearchModalVisible(false));
+    };
+
+    const closeOnboarding = async () => {
+        setIsOnboardingVisible(false);
+        try {
+            await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+        } catch (error) {
+            console.warn('Error saving onboarding state:', error);
+        }
     };
 
     const renderItem = ({ item, index }) => (
@@ -235,7 +251,7 @@ const HomeScreen = ({ navigation, route }) => {
 
             {/* FAB Search Button */}
             <TouchableOpacity 
-                style={[styles.fabButton, { backgroundColor: tokens.colors.primary }]}
+                style={[styles.fabButton, { backgroundColor: tokens.colors.accent }]}
                 onPress={openSearchModal}
                 activeOpacity={0.9}
             >
@@ -315,28 +331,33 @@ const HomeScreen = ({ navigation, route }) => {
                         {/* Filters */}
                         <View style={styles.pillsContainer}>
                             {[
-                                { key: 'category', data: categories, label: 'Categoria' }, 
-                                { key: 'color', data: colors, label: 'Colore' }, 
-                                { key: 'brand', data: brands, label: 'Brand' }
+                                { key: 'categories', data: categories, label: 'Categoria' }, 
+                                { key: 'colors', data: colors, label: 'Colore' }, 
+                                { key: 'brands', data: brands, label: 'Brand' }
                             ].map(group => (
                                 <View key={group.key} style={styles.pillGroup}>
-                                    <Text style={[styles.pillGroupLabel, { color: tokens.colors.textSecondary }]}>{group.label}</Text>
+                                    <Text style={[styles.pillGroupLabel, { color: tokens.colors.textSecondary }]}>
+                                        {group.label} {filter[group.key].length > 0 && `(${filter[group.key].length})`}
+                                    </Text>
                                     <View style={styles.pillsRow}>
                                         <FilterPill
-                                            active={!filter[group.key]}
+                                            active={filter[group.key].length === 0}
                                             label="Tutti"
-                                            onPress={() => setFilter(prev => ({ ...prev, [group.key]: '' }))}
+                                            onPress={() => setFilter(prev => ({ ...prev, [group.key]: [] }))}
                                             tokens={tokens}
                                         />
                                         {group.data.map(val => (
                                             <FilterPill
                                                 key={val}
-                                                active={filter[group.key] === val}
+                                                active={filter[group.key].includes(val)}
                                                 label={val}
-                                                onPress={() => setFilter(prev => ({ 
-                                                    ...prev, 
-                                                    [group.key]: prev[group.key] === val ? '' : val 
-                                                }))}
+                                                onPress={() => setFilter(prev => {
+                                                    const current = prev[group.key];
+                                                    const newArray = current.includes(val)
+                                                        ? current.filter(v => v !== val)
+                                                        : [...current, val];
+                                                    return { ...prev, [group.key]: newArray };
+                                                })}
                                                 tokens={tokens}
                                             />
                                         ))}
@@ -351,7 +372,7 @@ const HomeScreen = ({ navigation, route }) => {
                                 {filteredItems.length} risultat{filteredItems.length !== 1 ? 'i' : 'o'}
                             </Text>
                             <TouchableOpacity 
-                                style={[styles.applyButton, { backgroundColor: tokens.colors.primary }]}
+                                style={[styles.applyButton, { backgroundColor: tokens.colors.accent }]}
                                 onPress={closeSearchModal}
                             >
                                 <Text style={styles.applyButtonText}>Applica</Text>
@@ -360,6 +381,12 @@ const HomeScreen = ({ navigation, route }) => {
                     </Animated.View>
                 </Animated.View>
             </Modal>
+
+            {/* Onboarding Modal */}
+            <OnboardingModal 
+                visible={isOnboardingVisible}
+                onClose={closeOnboarding}
+            />
         </View>
     );
 };
@@ -370,8 +397,8 @@ const FilterPill = ({ label, active, onPress, tokens }) => (
         style={[
             styles.pill, 
             { 
-                borderColor: active ? tokens.colors.primary : tokens.colors.border,
-                backgroundColor: active ? tokens.colors.primary : tokens.colors.background
+                borderColor: active ? tokens.colors.accent : tokens.colors.border,
+                backgroundColor: active ? tokens.colors.accent : tokens.colors.background
             }
         ]}
         activeScale={0.92}

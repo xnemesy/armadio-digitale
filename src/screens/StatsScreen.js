@@ -54,7 +54,7 @@ const StatsScreen = ({ route }) => {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <BarChart3 size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+            <BarChart3 size={24} color={tokens.colors.accent} strokeWidth={2.5} />
             <Text style={styles.headerTitle}>Statistiche</Text>
           </View>
           <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>

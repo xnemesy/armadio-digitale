@@ -61,9 +61,9 @@ export const darkColors = {
   textPrimary: '#F9FAFB',
   textSecondary: '#D1D5DB',
   textMuted: '#9CA3AF',
-  accent: '#10B981',
-  accentDark: '#059669',
-  accentLight: '#34D399',
+  accent: '#6366F1',
+  accentDark: '#4F46E5',
+  accentLight: '#818CF8',
   placeholder: '#9CA3AF',
   success: '#10B981',
   warning: '#F59E0B',
@@ -73,7 +73,7 @@ export const darkColors = {
   // Navigation specific
   navBackground: '#1A1A1A',
   navInactive: '#6B7280',
-  navActive: '#10B981',
+  navActive: '#6366F1',
   textOnPrimary: '#FFFFFF',
 };
 
@@ -86,9 +86,9 @@ export const lightColors = {
   textPrimary: '#111827',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
-  accent: '#10B981',
-  accentDark: '#059669',
-  accentLight: '#34D399',
+  accent: '#6366F1',
+  accentDark: '#4F46E5',
+  accentLight: '#818CF8',
   placeholder: '#9CA3AF',
   success: '#10B981',
   warning: '#F59E0B',
@@ -98,7 +98,7 @@ export const lightColors = {
   // Navigation specific
   navBackground: '#FFFFFF',
   navInactive: '#9CA3AF',
-  navActive: '#10B981',
+  navActive: '#6366F1',
   textOnPrimary: '#FFFFFF',
 };
 

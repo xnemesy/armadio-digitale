@@ -5,3 +5,4 @@ export { default as LoadingOverlay } from './LoadingOverlay';
 export { default as PressableScale } from './PressableScale';
 export { default as Skeleton, SkeletonBlock, SkeletonCircle } from './Skeleton';
 export { default as ConsentDialog } from './ConsentDialog';
+export { default as OnboardingModal } from './OnboardingModal';

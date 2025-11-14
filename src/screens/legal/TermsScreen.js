@@ -11,7 +11,7 @@ const TermsScreen = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.colors.background }]}>
       <View style={[styles.container, { backgroundColor: tokens.colors.background }]}>
         <View style={[styles.header, { backgroundColor: tokens.colors.surface, borderBottomColor: tokens.colors.border }]}>
-          <FileText size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+          <FileText size={24} color={tokens.colors.accent} strokeWidth={2.5} />
           <Text style={[styles.headerTitle, { color: tokens.colors.textPrimary }]}>Termini di Servizio</Text>
         </View>
         
@@ -199,10 +199,10 @@ const TermsScreen = () => {
               <Text style={[styles.bodyText, { color: tokens.colors.textSecondary }]}>
                 Per domande sui Termini di Servizio, contattaci a:
               </Text>
-              <Text style={[styles.contactText, { color: tokens.colors.primary }]}>
+              <Text style={[styles.contactText, { color: tokens.colors.accent }]}>
                 Email: support@armadiodigitale.app
               </Text>
-              <Text style={[styles.contactText, { color: tokens.colors.primary }]}>
+              <Text style={[styles.contactText, { color: tokens.colors.accent }]}>
                 Indirizzo: [Inserisci indirizzo legale]
               </Text>
             </Section>
@@ -229,7 +229,7 @@ const SubSection = ({ title, children, tokens }) => (
 
 const BulletPoint = ({ text, tokens }) => (
   <View style={styles.bulletContainer}>
-    <Text style={[styles.bullet, { color: tokens.colors.primary }]}>•</Text>
+    <Text style={[styles.bullet, { color: tokens.colors.accent }]}>•</Text>
     <Text style={[styles.bulletText, { color: tokens.colors.textSecondary }]}>{text}</Text>
   </View>
 );

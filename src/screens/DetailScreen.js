@@ -70,7 +70,7 @@ const DetailScreen = ({ navigation, route }) => {
     input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 10, borderRadius: 10, color: tokens.colors.textPrimary },
     buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
     button: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-    primaryButton: { backgroundColor: tokens.colors.primary },
+    primaryButton: { backgroundColor: tokens.colors.accent },
     secondaryButton: { backgroundColor: tokens.colors.surfaceLight },
     deleteButton: { backgroundColor: tokens.colors.error },
     buttonText: { color: '#FFF', fontWeight: '600', fontSize: 16 },
@@ -84,7 +84,7 @@ const DetailScreen = ({ navigation, route }) => {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <Animated.View entering={FadeIn} style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <ChevronLeft size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+            <ChevronLeft size={24} color={tokens.colors.accent} strokeWidth={2.5} />
           </TouchableOpacity>
           <Text style={styles.title}>Dettaglio Capo</Text>
         </Animated.View>

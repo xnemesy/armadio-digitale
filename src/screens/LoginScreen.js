@@ -201,7 +201,7 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Forgot Password */}
           <TouchableOpacity onPress={handleForgotPassword} disabled={loading}>
-            <Text style={[styles.forgotPassword, { color: tokens.colors.primary }]}>
+            <Text style={[styles.forgotPassword, { color: tokens.colors.accent }]}>
               Password dimenticata?
             </Text>
           </TouchableOpacity>
@@ -210,7 +210,7 @@ const LoginScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.signInButton,
-              { backgroundColor: loading ? tokens.colors.border : tokens.colors.primary }
+              { backgroundColor: loading ? tokens.colors.border : tokens.colors.accent }
             ]}
             onPress={handleEmailSignIn}
             disabled={loading}
@@ -281,7 +281,7 @@ const LoginScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('SignUp')}
               disabled={loading}
             >
-              <Text style={[styles.signUpLink, { color: tokens.colors.primary }]}>
+              <Text style={[styles.signUpLink, { color: tokens.colors.accent }]}>
                 Registrati
               </Text>
             </TouchableOpacity>

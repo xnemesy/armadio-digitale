@@ -137,7 +137,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       await googleSignIn();
       return { success: true };
-    } catch (error).
+    } catch (error) {
       console.error('Google sign in error:', error);
       return { success: false, error: error.message || 'Errore durante il login con Google' };
     } finally {
@@ -220,7 +220,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Resend email verification
-  const resendEmailVerification = async ().
+  const resendEmailVerification = async () => {
     try {
       const currentUser = auth().currentUser;
       if (!currentUser) {
@@ -337,7 +337,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
   };
 
-  return <AuthContext.Provider value={value}>{children}</Auth.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

@@ -38,7 +38,7 @@ const ConsentDialog = ({ visible, onClose }) => {
         <View style={[styles.dialog, { backgroundColor: tokens.colors.surface }]}>
           {/* Header */}
           <View style={styles.header}>
-            <Cookie size={32} color={tokens.colors.primary} strokeWidth={2} />
+            <Cookie size={32} color={tokens.colors.accent} strokeWidth={2} />
             <Text style={[styles.title, { color: tokens.colors.textPrimary }]}>
               Privacy &amp; Consenso
             </Text>
@@ -53,7 +53,7 @@ const ConsentDialog = ({ visible, onClose }) => {
             {/* Analytics Toggle */}
             <View style={[styles.optionCard, { backgroundColor: tokens.colors.background, borderColor: tokens.colors.border }]}>
               <View style={styles.optionLeft}>
-                <ShieldCheck size={20} color={tokens.colors.primary} strokeWidth={2} />
+                <ShieldCheck size={20} color={tokens.colors.accent} strokeWidth={2} />
                 <View style={styles.optionText}>
                   <Text style={[styles.optionTitle, { color: tokens.colors.textPrimary }]}>
                     Analytics Anonimi
@@ -69,7 +69,7 @@ const ConsentDialog = ({ visible, onClose }) => {
                   setAnalyticsEnabledState(value);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                trackColor={{ false: tokens.colors.border, true: tokens.colors.primary }}
+                trackColor={{ false: tokens.colors.border, true: tokens.colors.accent }}
                 thumbColor="#FFFFFF"
               />
             </View>
@@ -95,7 +95,7 @@ const ConsentDialog = ({ visible, onClose }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, { backgroundColor: tokens.colors.primary }]}
+              style={[styles.button, styles.buttonPrimary, { backgroundColor: tokens.colors.accent }]}
               onPress={handleCustomize}
               activeOpacity={0.8}
             >
@@ -110,7 +110,7 @@ const ConsentDialog = ({ visible, onClose }) => {
             onPress={handleAcceptAll}
             activeOpacity={0.7}
           >
-            <Text style={[styles.acceptAllText, { color: tokens.colors.primary }]}>
+            <Text style={[styles.acceptAllText, { color: tokens.colors.accent }]}>
               Accetta Tutto
             </Text>
           </TouchableOpacity>

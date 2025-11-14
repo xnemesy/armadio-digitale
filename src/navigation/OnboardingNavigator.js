@@ -17,7 +17,7 @@ const Pagination = ({ data, currentIndex, tokens }) => {
         const animatedStyle = useAnimatedStyle(() => {
           const isActive = currentIndex === index;
           return {
-            backgroundColor: withTiming(isActive ? tokens.colors.primary : tokens.colors.border, {
+            backgroundColor: withTiming(isActive ? tokens.colors.accent : tokens.colors.border, {
               duration: 300,
             }),
             width: withTiming(isActive ? 24 : 8, { duration: 300 }),
@@ -33,7 +33,7 @@ const OnboardingButton = ({ isLastScreen, onPress, tokens }) => {
   const styles = getStyles(tokens); // Same for this small component
   return (
   <PressableScale onPress={onPress}>
-    <View style={[styles.nextButton, { backgroundColor: tokens.colors.primary }]}>
+    <View style={[styles.nextButton, { backgroundColor: tokens.colors.accent }]}>
       <Text style={[styles.nextButtonText, { color: tokens.colors.textOnPrimary }]}>
         {isLastScreen ? 'Inizia Ora' : 'Avanti'}
       </Text>

@@ -18,14 +18,14 @@ const AddItemScreen = ({ navigation, route }) => {
         header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
         backButton: { paddingRight: 12, paddingVertical: 4 },
         title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
-        statusText: { textAlign: 'center', marginBottom: 15, marginHorizontal: 20, color: tokens.colors.primary, fontSize: 14, minHeight: 20 },
+        statusText: { textAlign: 'center', marginBottom: 15, marginHorizontal: 20, color: tokens.colors.accent, fontSize: 15, fontWeight: '600', minHeight: 24 },
         imageUploadArea: { marginBottom: 25, marginHorizontal: 20, borderWidth: 2, borderColor: tokens.colors.border, borderRadius: 12, padding: 10, backgroundColor: tokens.colors.surface },
         imagePreview: { width: '100%', height: 300, borderRadius: 10, resizeMode: 'cover' },
         placeholder: { padding: 30, marginHorizontal: 20, alignItems: 'center' },
         buttonRow: { flexDirection: 'row', gap: 12, marginBottom: 25, marginHorizontal: 20 },
         actionButton: { flex: 1, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },
-        cameraButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primary },
-        galleryButton: { backgroundColor: tokens.colors.surfaceLight, borderColor: tokens.colors.primaryLight },
+        cameraButton: { backgroundColor: tokens.colors.surfaceLight },
+        galleryButton: { backgroundColor: tokens.colors.surfaceLight },
         buttonText: { fontSize: 14, fontWeight: '600', color: tokens.colors.textPrimary },
         duplicateContainer: { marginHorizontal: 20, marginBottom: 20, padding: 12, borderRadius: 12, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.warning },
         duplicateTitle: { color: tokens.colors.warning, fontWeight: '700', marginBottom: 4 },
@@ -35,10 +35,25 @@ const AddItemScreen = ({ navigation, route }) => {
         fieldGroup: { marginBottom: 12 },
         label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 6, textTransform: 'capitalize' },
         input: { backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.border, padding: 12, borderRadius: 10, color: tokens.colors.textPrimary },
-        recommendations: { padding: 15, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.primary, borderRadius: 8, marginBottom: 20 },
-        recommendationsTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.primary, marginBottom: 10 },
+        recommendations: { padding: 15, backgroundColor: tokens.colors.surfaceLight, borderWidth: 1, borderColor: tokens.colors.accent, borderRadius: 8, marginBottom: 20 },
+        recommendationsTitle: { fontSize: 16, fontWeight: '700', color: tokens.colors.accent, marginBottom: 10 },
         recommendationLink: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: tokens.colors.border },
-        saveButton: { marginHorizontal: 20, marginBottom: 30, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: tokens.colors.primary },
+        saveButton: { marginHorizontal: 20, marginBottom: 30, padding: 16, borderRadius: 12, alignItems: 'center', backgroundColor: tokens.colors.accent },
+        scanningOverlay: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderRadius: 10,
+        },
+        scanningText: {
+            marginTop: 12,
+            fontSize: 16,
+            fontWeight: '700',
+        },
     }), [tokens]);
     const [imageBase64, setImageBase64] = useState(null);
     const [imageLocalUri, setImageLocalUri] = useState(null);
@@ -46,6 +61,7 @@ const AddItemScreen = ({ navigation, route }) => {
     const [metadata, setMetadata] = useState({ name: '', category: '', mainColor: '', brand: '', size: '' });
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState('');
+    const [scanning, setScanning] = useState(false);
     const [recommendations, setRecommendations] = useState([]);
     const [duplicateFound, setDuplicateFound] = useState(null);
 
@@ -99,7 +115,8 @@ const AddItemScreen = ({ navigation, route }) => {
 
     const analyzeAndCheck = async (base64) => {
         setLoading(true);
-        setStatus('Analisi on-device in corso...');
+        setScanning(true);
+        setStatus('🔍 Analisi on-device in corso...');
         try {
             // 1) On-device fast classification (if available)
             let aiResult = {};
@@ -107,31 +124,33 @@ const AddItemScreen = ({ navigation, route }) => {
                 const localPred = await classifyClothingFromUri(imageLocalUri);
                 if (localPred && localPred.confidence >= ML_CONFIG.confidenceThreshold) {
                     aiResult.category = localPred.label;
-                    setStatus(`Rilevata categoria locale: ${localPred.label} (${(localPred.confidence*100).toFixed(0)}%)`);
+                    setStatus(`✅ Categoria: ${localPred.label} (${(localPred.confidence*100).toFixed(0)}%)`);
                 } else {
-                    setStatus('Bassa confidenza locale. Analisi Gemini in corso...');
+                    setStatus('🤖 Analisi Gemini AI in corso...');
                     aiResult = await analyzeImageWithGemini(base64);
                 }
             } else {
-                setStatus('Analisi Gemini in corso...');
+                setStatus('🤖 Analisi Gemini AI in corso...');
                 aiResult = await analyzeImageWithGemini(base64);
             }
 
             setMetadata(prev => ({ ...prev, ...aiResult }));
-            setStatus('Verifica duplicati nell\'armadio...');
+            setScanning(false);
+            setStatus('🔎 Verifica duplicati nell\'armadio...');
             const duplicate = await checkDuplicate(aiResult);
             if (duplicate) {
                 setDuplicateFound(duplicate);
-                setStatus('ATTENZIONE: Trovato capo simile!');
+                setStatus('⚠️ ATTENZIONE: Trovato capo simile!');
                 setLoading(false);
                 return;
             }
-            setStatus('Generazione suggerimenti E-commerce...');
+            setStatus('🛍️ Generazione suggerimenti acquisti...');
             const recs = await getShoppingRecommendations(`${aiResult.name} ${aiResult.category}`);
             setRecommendations(recs);
-            setStatus('Analisi completata. Verifica i metadati.');
+            setStatus('✨ Analisi completata! Verifica i dati.');
         } catch (e) {
-            setStatus('Errore analisi AI. Inserisci i dati manualmente.');
+            setScanning(false);
+            setStatus('❌ Errore analisi AI. Inserisci manualmente.');
         } finally {
             setLoading(false);
         }
@@ -172,32 +191,39 @@ const AddItemScreen = ({ navigation, route }) => {
             <View style={styles.container}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <ChevronLeft size={24} color={tokens.colors.primary} strokeWidth={2.5} />
+                        <ChevronLeft size={24} color={tokens.colors.accent} strokeWidth={2.5} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Aggiungi Nuovo Capo</Text>
                 </View>
                 <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
                     <Text style={styles.statusText}>
-                        {loading && <ActivityIndicator size="small" color={tokens.colors.primary} style={{ marginRight: 8 }} />}
-                        {status}
+                        {status || (imagePreview ? 'Immagine pronta. Modifica i dati se necessario.' : 'Scatta o seleziona foto per iniziare.')}
                     </Text>
-                    {imagePreview ? (
-                        <View style={styles.imageUploadArea}>
-                            <Image source={{ uri: imagePreview }} style={styles.imagePreview} />
-                        </View>
-                    ) : (
-                        <View style={styles.placeholder}>
-                            <Text style={{ fontSize: 48, color: tokens.colors.textSecondary }}>📷</Text>
-                            <Text style={{ color: tokens.colors.textSecondary, marginTop: 8 }}>Scegli come aggiungere la foto</Text>
-                        </View>
-                    )}
+                    <View style={styles.imageUploadArea}>
+                        {imagePreview ? (
+                            <View style={{ position: 'relative' }}>
+                                <Image source={{ uri: imagePreview }} style={styles.imagePreview} />
+                                {scanning && (
+                                    <View style={[styles.scanningOverlay, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
+                                        <ActivityIndicator size="large" color={tokens.colors.accent} />
+                                        <Text style={[styles.scanningText, { color: tokens.colors.accent }]}>Scansione AI...</Text>
+                                    </View>
+                                )}
+                            </View>
+                        ) : (
+                            <View style={styles.placeholder}>
+                                <ImageIcon size={48} color={tokens.colors.textMuted} />
+                                <Text style={{ color: tokens.colors.textSecondary, marginTop: 12 }}>Nessuna immagine</Text>
+                            </View>
+                        )}
+                    </View>
                     <View style={styles.buttonRow}>
-                        <TouchableOpacity onPress={handleTakePhoto} style={[styles.actionButton, styles.cameraButton]} disabled={loading}>
-                            <Camera size={32} color={tokens.colors.primary} strokeWidth={2} />
+                        <TouchableOpacity onPress={handleTakePhoto} style={[styles.actionButton, styles.cameraButton, { borderColor: tokens.colors.accent }]} disabled={loading}>
+                            <Camera size={32} color={tokens.colors.accent} strokeWidth={2} />
                             <Text style={styles.buttonText}>Scatta Foto</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleImageChange} style={[styles.actionButton, styles.galleryButton]} disabled={loading}>
-                            <ImageIcon size={32} color={tokens.colors.primaryLight} strokeWidth={2} />
+                        <TouchableOpacity onPress={handleImageChange} style={[styles.actionButton, styles.galleryButton, { borderColor: tokens.colors.accentLight }]} disabled={loading}>
+                            <ImageIcon size={32} color={tokens.colors.accentLight} strokeWidth={2} />
                             <Text style={styles.buttonText}>Dalla Galleria</Text>
                         </TouchableOpacity>
                     </View>
@@ -226,8 +252,8 @@ const AddItemScreen = ({ navigation, route }) => {
                         <View style={styles.recommendations}>
                             <Text style={styles.recommendationsTitle}>Suggerimenti di Articoli Correlati</Text>
                             {recommendations.map((rec, idx) => (
-                                <TouchableOpacity key={idx} onPress={() => Linking.openURL(rec.url)} style={styles.recommendationLink}>
-                                    <Text style={{ color: tokens.colors.primary, fontWeight: '500', fontSize: 14 }}>{rec.title} →</Text>
+                                    <TouchableOpacity key={`rec-${index}`} onPress={() => Linking.openURL(rec.url)} style={styles.recommendationLink}>
+                                    <Text style={{ color: tokens.colors.accent, fontWeight: '500', fontSize: 14 }}>{rec.title} →</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
