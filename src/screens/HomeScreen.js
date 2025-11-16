@@ -7,6 +7,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Search, X } from 'lucide-react-native';
 import { ItemCard, PressableScale, SkeletonBlock, OnboardingModal } from '../components';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { APP_ID } from '../config/appConfig';
 
 const FILTER_STORAGE_KEY = '@armadio_filters';
@@ -15,7 +16,7 @@ const ONBOARDING_STORAGE_KEY = '@armadio_onboarding_shown';
 
 // Enhanced HomeScreen with filters, debounced search, sorting, and persistence
 const HomeScreen = ({ navigation, route }) => {
-    const { user } = route.params || { user: { uid: 'test-user' } };
+    const { user } = useAuth();
     const { tokens } = useTheme();
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);

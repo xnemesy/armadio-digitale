@@ -4,11 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarChart3 } from 'lucide-react-native';
 import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { APP_ID } from '../config/appConfig';
 import { SkeletonBlock } from '../components';
 
 const StatsScreen = ({ route }) => {
-  const { user } = route.params || { user: { uid: 'test-user' } };
+  const { user } = useAuth();
   const { tokens } = useTheme();
   const [stats, setStats] = useState({ totalItems: 0, byCategory: {}, byColor: {}, byBrand: {}, bySize: {} });
   const [loading, setLoading] = useState(true);

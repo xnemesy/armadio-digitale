@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, StyleSheet, Linking } from 'react-native';
 import { Camera, Image as ImageIcon, ChevronLeft } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import storage from '@react-native-firebase/storage';
 import firestore, { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
@@ -9,9 +10,10 @@ import { classifyClothingFromUri } from '../ml/executorchClient';
 import { ML_CONFIG } from '../ml/config';
 import { APP_ID } from '../config/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const AddItemScreen = ({ navigation, route }) => {
-    const { user } = route.params || { user: { uid: 'test-user' } };
+    const { user } = useAuth(); // Use authenticated user from AuthContext
     const { tokens } = useTheme();
     const styles = useMemo(() => StyleSheet.create({
         container: { flex: 1, backgroundColor: tokens.colors.background },
@@ -157,22 +159,53 @@ const AddItemScreen = ({ navigation, route }) => {
     };
 
     const saveItem = async () => {
+        if (!user || !user.uid) {
+            Alert.alert('Errore', 'Devi essere autenticato per caricare immagini.');
+            return;
+        }
         if (!imageLocalUri || !metadata.name || !metadata.category || !metadata.mainColor) {
             Alert.alert('Dati mancanti', 'Seleziona immagine e metadati essenziali.');
             return;
         }
         setLoading(true);
-        setStatus('Caricamento su Firebase Storage...');
+        setStatus('Generazione thumbnail...');
         try {
             const itemId = Date.now().toString();
-            const filePath = `artifacts/${APP_ID}/users/${user.uid}/items/${itemId}.jpg`;
-            await storage().ref(filePath).putFile(imageLocalUri);
-            const fullSizeUrl = await storage().ref(filePath).getDownloadURL();
+            const basePath = `artifacts/${APP_ID}/users/${user.uid}/items/${itemId}`;
+            
+            // Generate optimized thumbnail (150x200px, JPEG 70%)
+            const thumbnail = await ImageManipulator.manipulateAsync(
+                imageLocalUri,
+                [{ resize: { width: 150 } }],
+                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            
+            setStatus('Upload immagini...');
+            
+            // Cache metadata for CDN optimization (1 year immutable)
+            const cacheMetadata = {
+                cacheControl: 'public, max-age=31536000, immutable',
+                contentType: 'image/jpeg'
+            };
+            
+            // Upload thumbnail first (fast preview)
+            const thumbPath = `${basePath}_thumb.jpg`;
+            const thumbRef = storage().ref(thumbPath);
+            await thumbRef.putFile(thumbnail.uri, { metadata: cacheMetadata });
+            const thumbnailUrl = await thumbRef.getDownloadURL();
+            
+            // Upload full-size image
+            const fullPath = `${basePath}.jpg`;
+            const fullRef = storage().ref(fullPath);
+            await fullRef.putFile(imageLocalUri, { metadata: cacheMetadata });
+            const fullSizeUrl = await fullRef.getDownloadURL();
+            
             const itemData = {
                 ...metadata,
                 userId: user.uid,
-                storagePath: filePath,
-                thumbnailUrl: fullSizeUrl,
+                storagePath: fullPath,
+                thumbnailUrl,
+                fullSizeUrl,
                 createdAt: serverTimestamp(),
             };
             const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${user.uid}/items`, itemId);

@@ -128,7 +128,7 @@ const AppNavigator = () => {
     <NavigationContainer>
       <StatusBar barStyle={tokens.isDark ? 'light-content' : 'dark-content'} backgroundColor={tokens.colors.background} />
       {user ? (
-        <MainTabNavigator user={user} />
+        <MainTabNavigator />
       ) : (
         <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: tokens.colors.background } }}>
           <Stack.Screen name="Auth" component={AuthScreen} />

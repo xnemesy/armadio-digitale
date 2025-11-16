@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import { useThemeTokens } from '../design/tokens';
 import PressableScale from './PressableScale';
 
@@ -21,7 +22,15 @@ const ItemCard = ({ item, onPress }) => {
             onPress={() => onPress && onPress(item)}
             activeScale={0.96}
         >
-            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+            <FastImage 
+                source={{ 
+                    uri: imageUrl,
+                    priority: FastImage.priority.normal,
+                    cache: FastImage.cacheControl.immutable
+                }} 
+                style={styles.image} 
+                resizeMode={FastImage.resizeMode.cover}
+            />
             <View style={{ paddingHorizontal: t.spacing.md, paddingTop: t.spacing.sm }}>
                 <Text style={{ fontSize: t.typography.sizes.md, fontWeight: '600', color: t.colors.textPrimary }} numberOfLines={1}>
                     {item.name}

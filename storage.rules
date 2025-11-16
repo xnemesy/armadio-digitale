@@ -2,7 +2,8 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Helper functions
+    // ===== HELPER FUNCTIONS =====
+    
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,22 +12,51 @@ service firebase.storage {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isValidImageSize() {
-      // Max 10MB per image
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/(jpeg|jpg|png|webp)');
+    }
+    
+    // Thumbnail: max 500KB (generously, actual ~5-10KB)
+    function isValidThumbnailSize() {
+      return request.resource.size < 500 * 1024;
+    }
+    
+    // Full-size: max 10MB
+    function isValidFullSizeSize() {
       return request.resource.size < 10 * 1024 * 1024;
     }
     
-    function isValidImageType() {
-      return request.resource.contentType.matches('image/.*');
+    // Check if cacheControl is immutable (best practice for static assets)
+    function hasImmutableCache() {
+      return request.resource.metadata.cacheControl == 'public, max-age=31536000, immutable';
     }
     
-    // User images path
-    match /artifacts/{appId}/users/{userId}/{allPaths=**} {
-      // Only owner can read/write their images
+    // ===== USER ITEMS STORAGE =====
+    
+    // Thumbnail images (150x200px JPEG 70%)
+    match /artifacts/{appId}/users/{userId}/items/{itemId}_thumb.jpg {
       allow read: if isOwner(userId);
       allow write: if isOwner(userId) 
-                   && isValidImageSize() 
-                   && isValidImageType();
+                   && isValidImageType()
+                   && isValidThumbnailSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Full-size images
+    match /artifacts/{appId}/users/{userId}/items/{itemId}.jpg {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) 
+                   && isValidImageType()
+                   && isValidFullSizeSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Fallback for any other files in user's items folder (e.g., PNG, WebP)
+    match /artifacts/{appId}/users/{userId}/items/{filename} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) 
+                   && isValidImageType()
+                   && isValidFullSizeSize();
       allow delete: if isOwner(userId);
     }
     

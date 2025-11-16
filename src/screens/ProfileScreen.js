@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone, BarChart } from 'lucide-react-native';
+import { User, LogOut, Mail, ShieldCheck, Sun, Moon, Smartphone, BarChart, Database } from 'lucide-react-native';
 import firestore, { collection, getDocs } from '@react-native-firebase/firestore';
 import { APP_ID } from '../config/appConfig';
 import * as Haptics from 'expo-haptics';
@@ -278,12 +278,22 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.settingItem, { borderBottomWidth: 0 }]}
+              style={[styles.settingItem, { borderBottomColor: tokens.colors.border }]}
               onPress={() => navigation.navigate('Terms')}
             >
               <View style={styles.settingLeft}>
                 <Text style={styles.settingIcon}>📄</Text>
                 <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Termini di Servizio</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.settingItem, { borderBottomWidth: 0 }]}
+              onPress={() => navigation.navigate('FirebaseMonitor', { user })}
+            >
+              <View style={styles.settingLeft}>
+                <Database size={20} color={tokens.colors.accent} strokeWidth={2} />
+                <Text style={[styles.settingText, { color: tokens.colors.textPrimary }]}>Monitor Firebase</Text>
               </View>
             </TouchableOpacity>
           </View>

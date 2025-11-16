@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, Image, TouchableOpacity, Alert, TextInput, ScrollView, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, TextInput, ScrollView, Platform, KeyboardAvoidingView, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import FastImage from 'react-native-fast-image';
 import { ChevronLeft } from 'lucide-react-native';
 import storage from '@react-native-firebase/storage';
 import firestore, { doc, setDoc, deleteDoc } from '@react-native-firebase/firestore';
@@ -63,7 +64,7 @@ const DetailScreen = ({ navigation, route }) => {
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.border, backgroundColor: tokens.colors.surface },
     backButton: { paddingRight: 12, paddingVertical: 4 },
     title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textPrimary },
-    image: { width: '100%', height: 400, resizeMode: 'cover', backgroundColor: tokens.colors.surface },
+    image: { width: '100%', height: 400, backgroundColor: tokens.colors.surface },
     form: { backgroundColor: tokens.colors.surface, margin: 16, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: tokens.colors.border },
     formGroup: { marginBottom: 14 },
     label: { fontSize: 12, color: tokens.colors.textSecondary, marginBottom: 4, textTransform: 'capitalize' },
@@ -88,7 +89,15 @@ const DetailScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <Text style={styles.title}>Dettaglio Capo</Text>
         </Animated.View>
-        <Image source={{ uri: item.thumbnailUrl }} style={styles.image} />
+        <FastImage 
+          source={{ 
+            uri: item.fullSizeUrl || item.thumbnailUrl,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable
+          }} 
+          style={styles.image}
+          resizeMode={FastImage.resizeMode.cover}
+        />
         {editing ? (
           <View style={styles.form}>
             {['name', 'category', 'mainColor', 'brand', 'size'].map(key => (

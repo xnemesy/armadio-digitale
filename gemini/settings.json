@@ -1,0 +1,43 @@
+ì{
+  "project_context": [
+    "This is a React Native (Expo SDK 54) application named 'Armadio Digitale'.",
+    "The app functions as a digital wardrobe manager.",
+    "Backend services are provided by Firebase (Firestore, Storage, Auth, Analytics).",
+    "It uses a hybrid AI approach: on-device ExecuTorch (MobileNetV3) for categorization and cloud-based Gemini 2.0 Flash Exp for detailed analysis.",
+    "State management is handled by React Hooks and Context API, with persistence via AsyncStorage.",
+    "Navigation is managed by React Navigation v6.",
+    "Styling is transitioning from a legacy `colors.js` to a new design token system in `src/design/tokens.js`.",
+    "Code quality is enforced by ESLint and Prettier.",
+    "Tests are written with Jest and React Native Testing Library."
+  ],
+  "important_files": [
+    "src/navigation/MainTabNavigator.js",
+    "src/screens/HomeScreen.js",
+    "src/components/ItemCard.js",
+    "src/lib/ai.js",
+    "src/ml/executorchClient.js",
+    "firebase/config.js",
+    "functions/index.js",
+    "src/design/tokens.js",
+    "GEMINI.md"
+  ],
+  "files_to_ignore": [
+    ".expo/",
+    ".idea/",
+    "node_modules/",
+    "android/build/",
+    "android/.gradle/",
+    "ios/build/",
+    "logs/",
+    "*.log"
+  ],
+  "preferred_tools": [
+    "npm"
+  ],
+  "mcp_servers": [
+    "react-native-assistant.mcp.gemini.dev",
+    "firebase-rules-validator.mcp.gemini.dev",
+    "eas-build-optimizer.mcp.gemini.dev",
+    "mobile-e2e-tester.mcp.gemini.dev"
+  ]
+}

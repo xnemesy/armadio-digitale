@@ -5,9 +5,10 @@ import { ChevronLeft, Zap } from 'lucide-react-native';
 import { getOutfitSuggestion } from '../lib/ai';
 import { APP_ID } from '../config/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const OutfitBuilderScreen = ({ navigation, route }) => {
-    const { user } = route.params || { user: { uid: 'test-user' } };
+    const { user } = useAuth();
     const { tokens } = useTheme();
     const [request, setRequest] = useState('');
     const [suggestion, setSuggestion] = useState(null);

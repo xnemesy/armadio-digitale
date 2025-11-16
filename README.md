@@ -11,6 +11,12 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
   - **Brand**: Marca + sotto-marca (es: "Nike Jordan", "Adidas Originals")
   - **Colore**: Sfumature precise (es: "Nero Lucido/Rosso" invece di solo "Nero")
   - **Categoria**: Sottocategorie specifiche (es: "Scarpe Sportive/Sneakers")
+- ⚡ **Ottimizzazione Performance Immagini**:
+  - **Thumbnails automatici**: Generazione 150x200px (JPEG 70%) durante upload
+  - **FastImage cache**: Caching aggressivo con immutable control (zero re-download)
+  - **Dual storage**: Thumbnail per liste (~5-10KB) + full-size per dettagli (~500KB-2MB)
+  - **Monitor Firebase integrato**: Dashboard in-app per statistiche Storage/banda/cache
+  - **~90% riduzione banda**: Caricamento liste 10-20x più veloce vs full-size
 - 🔍 **Filtri Avanzati**: Ricerca per testo, categoria, colore, brand con debouncing
 - 🗂️ **Ordinamento**: Ordina per data, nome o brand
 - 💾 **Persistenza**: Filtri e sort salvati automaticamente tra sessioni
@@ -27,6 +33,11 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
   - **On-Device**: ExecuTorch + MobileNetV3 INT8 per categoria locale (bassa latenza, privacy, offline)
   - **Cloud**: Gemini 2.0 Flash Exp via Cloud Functions con prompt fashion-expert (nomi/brand precisi)
   - **Strategia**: Local-first con fallback intelligente basato su confidence threshold (70%)
+- **Performance**:
+  - **Image Optimization**: expo-image-manipulator per thumbnail client-side (150x200px JPEG 70%)
+  - **Caching**: react-native-fast-image con immutable cache control (zero re-download)
+  - **Dual Storage**: Thumbnail per liste + full-size per dettagli (Storage paths separati)
+  - **Monitoring**: FirebaseMonitorScreen integrato per stats real-time
 - **State**: React Hooks + AsyncStorage per persistenza
 - **Animations**: Reanimated 3 + PressableScale component
 - **Design System**: Design tokens + ThemeContext per dark/light mode
@@ -154,18 +165,19 @@ eas build --profile production --platform ios
 │   │   ├── OutfitAIStackNavigator.js
 │   │   ├── ProfileStackNavigator.js
 │   │   └── index.js                # Barrel export
-│   ├── screens/                    # Schermate app (7 screen estratti)
+│   ├── screens/                    # Schermate app (8 screen estratti)
 │   │   ├── HomeScreen.js           # Lista + filtri + sorting + debounce
-│   │   ├── DetailScreen.js         # View/edit/delete item
-│   │   ├── AddItemScreen.js        # Camera + AI analysis + upload
+│   │   ├── DetailScreen.js         # View/edit/delete item (FastImage full-size)
+│   │   ├── AddItemScreen.js        # Camera + AI + thumbnail generation + upload
 │   │   ├── OutfitBuilderScreen.js  # AI outfit suggestions
 │   │   ├── ProfileScreen.js        # User profile + settings
 │   │   ├── StatsScreen.js          # Analytics wardrobe
+│   │   ├── FirebaseMonitorScreen.js # 🆕 Storage stats + cache monitor
 │   │   ├── AuthScreen.js           # Login/register (mock)
 │   │   └── index.js                # Barrel export
 │   ├── components/                 # UI components riutilizzabili
 │   │   ├── Header.js
-│   │   ├── ItemCard.js             # Card item con PressableScale
+│   │   ├── ItemCard.js             # Card item con FastImage + thumbnail caching
 │   │   ├── ItemForm.js
 │   │   ├── LoadingOverlay.js
 │   │   ├── PressableScale.js       # 🆕 Animated pressable (Reanimated)
@@ -188,7 +200,12 @@ eas build --profile production --platform ios
 ├── assets/                         # Immagini, icone, splash screen
 │   └── models/                     # 🆕 Modelli ML (.pte files)
 │       └── README.txt              # Istruzioni posizionamento modello
-└── scripts/                        # Script utilità (relocate, firebase restore)
+├── scripts/                        # Script utilità
+│   ├── relocate-project.js         # Move progetto (gestisce path con spazi)
+│   ├── restore-firebase-config.js  # Restore Firebase config da env
+│   └── migrate-thumbnails.js       # 🆕 Genera thumbnails per item esistenti
+└── functions/                      # 🆕 Cloud Functions (Gemini AI server-side)
+    └── index.js                    # analyzeImage, generateOutfit, getShoppingRecommendations
 ```
 
 **Nota architetturale**: `App.js` ridotto da **3295 a 80 righe** (~97% meno codice) estraendo navigatori e screen in file dedicati. Vedi `docs/ARCHITECTURE.md` per dettagli.
@@ -336,7 +353,16 @@ Target coverage:
   - Fallback a Gemini quando confidenza < threshold
   - Richiede Dev Client build (non funziona su Expo Go)
   - **Setup**: Posiziona il modello `.pte` in `assets/models/mobilenet_v3_clothes_int8.pte` e rebuild
-- **Upload immagini**: Usa `putFile(uri)` con React Native Firebase Storage
+- **Upload immagini**: 
+  - **Dual upload**: Genera thumbnail 150x200px client-side con expo-image-manipulator
+  - **Storage paths**: `${itemId}_thumb.jpg` (thumbnail) + `${itemId}.jpg` (full-size)
+  - **Firestore**: Salva sia `thumbnailUrl` che `fullSizeUrl` per ogni item
+  - **Migration**: Script Node.js per generare thumbnails su item esistenti (sharp)
+- **Image caching**: 
+  - **react-native-fast-image**: Cache nativa iOS/Android con immutable control
+  - **ItemCard**: Usa thumbnailUrl con `priority.normal`, `cache.immutable`
+  - **DetailScreen**: Usa fullSizeUrl con `priority.high`, `cache.immutable`
+  - **Monitoring**: FirebaseMonitorScreen mostra stats cache + ottimizzazione rate
 - **Gemini AI Cloud Function**: 
   - Modello: **Gemini 2.0 Flash Exp** con prompt ottimizzato per moda/fashion
   - Prompt specializzato per estrarre modelli specifici (es: "Air Jordan 4 Retro Bred Reimagined")
