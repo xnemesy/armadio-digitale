@@ -26,37 +26,28 @@ service firebase.storage {
       return request.resource.size < 10 * 1024 * 1024;
     }
     
-    // Check if cacheControl is immutable (best practice for static assets)
-    function hasImmutableCache() {
-      return request.resource.metadata.cacheControl == 'public, max-age=31536000, immutable';
-    }
+    // (Cache metadata is enforced at upload time in app code)
     
     // ===== USER ITEMS STORAGE =====
     
-    // Thumbnail images (150x200px JPEG 70%)
-    match /artifacts/{appId}/users/{userId}/items/{itemId}_thumb.jpg {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId) 
-                   && isValidImageType()
-                   && isValidThumbnailSize();
-      allow delete: if isOwner(userId);
+    // Helper to classify file type by name
+    function isThumb(file) {
+      return file.matches('^[^/]+_thumb\\.jpg$');
+    }
+    function isFull(file) {
+      return file.matches('^[^/]+\\.jpg$') && !isThumb(file);
     }
     
-    // Full-size images
-    match /artifacts/{appId}/users/{userId}/items/{itemId}.jpg {
+    // Items folder: apply per-file rules using filename patterns
+    match /artifacts/{appId}/users/{userId}/items/{file} {
       allow read: if isOwner(userId);
-      allow write: if isOwner(userId) 
+      allow write: if isOwner(userId)
                    && isValidImageType()
-                   && isValidFullSizeSize();
-      allow delete: if isOwner(userId);
-    }
-    
-    // Fallback for any other files in user's items folder (e.g., PNG, WebP)
-    match /artifacts/{appId}/users/{userId}/items/{filename} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId) 
-                   && isValidImageType()
-                   && isValidFullSizeSize();
+                   && (
+                        (isThumb(file) && isValidThumbnailSize()) ||
+                        (isFull(file) && isValidFullSizeSize()) ||
+                        (!isThumb(file) && !isFull(file) && isValidFullSizeSize())
+                      );
       allow delete: if isOwner(userId);
     }
     

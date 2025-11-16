@@ -42,7 +42,11 @@ const DetailScreen = ({ navigation, route }) => {
             setLoading(true);
             try {
               if (item.storagePath) {
+                // Delete full-size
                 await storage().ref(item.storagePath).delete();
+                // Delete thumbnail if exists (derived from storagePath)
+                const thumbPath = item.storagePath.replace(/\.jpg$/i, '_thumb.jpg');
+                try { await storage().ref(thumbPath).delete(); } catch (_) {}
               }
               const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
               await deleteDoc(itemRef);

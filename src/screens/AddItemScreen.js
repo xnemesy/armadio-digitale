@@ -194,10 +194,17 @@ const AddItemScreen = ({ navigation, route }) => {
             await thumbRef.putFile(thumbnail.uri, { metadata: cacheMetadata });
             const thumbnailUrl = await thumbRef.getDownloadURL();
             
+            // Optimize full-size image (resize + compress) before upload
+            const optimizedFull = await ImageManipulator.manipulateAsync(
+                imageLocalUri,
+                [{ resize: { width: 1600 } }],
+                { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+            );
+
             // Upload full-size image
             const fullPath = `${basePath}.jpg`;
             const fullRef = storage().ref(fullPath);
-            await fullRef.putFile(imageLocalUri, { metadata: cacheMetadata });
+            await fullRef.putFile(optimizedFull.uri, { metadata: cacheMetadata });
             const fullSizeUrl = await fullRef.getDownloadURL();
             
             const itemData = {
