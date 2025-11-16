@@ -5,7 +5,7 @@
  */
 
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 
 /**
  * Configura Google Sign-In
@@ -87,8 +87,8 @@ export const signInWithGoogle = async () => {
     // 4. Crea credenziale Firebase
     const googleCredential = auth.GoogleAuthProvider.credential(idToken);
 
-    // 5. Sign in su Firebase con credenziale Google
-    const userCredential = await auth().signInWithCredential(googleCredential);
+    // 5. Sign in su Firebase con credenziale Google (modular API)
+    const userCredential = await getAuth().signInWithCredential(googleCredential);
 
     console.log('✅ Google Sign-In completato:', userCredential.user.email);
     return userCredential;

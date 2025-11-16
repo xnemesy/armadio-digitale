@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarChart3 } from 'lucide-react-native';
-import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
+import { collection, getDocs, getFirestore } from '@react-native-firebase/firestore';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { APP_ID } from '../config/appConfig';
@@ -15,24 +16,36 @@ const StatsScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
-  useEffect(() => {
-    if (!user?.uid) return;
-    const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-    const itemsCollection = collection(firestore(), path);
-    const unsub = onSnapshot(itemsCollection, s => {
-      const items = s.docs.map(d => d.data());
-      const byCategory = {}, byColor = {}, byBrand = {}, bySize = {};
-      items.forEach(it => {
-        byCategory[it.category] = (byCategory[it.category] || 0) + 1;
-        byColor[it.mainColor] = (byColor[it.mainColor] || 0) + 1;
-        if (it.brand) byBrand[it.brand] = (byBrand[it.brand] || 0) + 1;
-        if (it.size) bySize[it.size] = (bySize[it.size] || 0) + 1;
-      });
-      setStats({ totalItems: items.length, byCategory, byColor, byBrand, bySize });
-      setLoading(false);
-    }, () => setLoading(false));
-    return () => unsub();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const run = async () => {
+        if (!user?.uid) return;
+        setLoading(true);
+        try {
+          const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+          const itemsCollection = collection(getFirestore(), path);
+          const s = await getDocs(itemsCollection);
+          if (cancelled) return;
+          const items = s.docs.map(d => d.data());
+          const byCategory = {}, byColor = {}, byBrand = {}, bySize = {};
+          items.forEach(it => {
+            byCategory[it.category] = (byCategory[it.category] || 0) + 1;
+            byColor[it.mainColor] = (byColor[it.mainColor] || 0) + 1;
+            if (it.brand) byBrand[it.brand] = (byBrand[it.brand] || 0) + 1;
+            if (it.size) bySize[it.size] = (bySize[it.size] || 0) + 1;
+          });
+          setStats({ totalItems: items.length, byCategory, byColor, byBrand, bySize });
+        } catch (e) {
+          // noop; keep last stats
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      run();
+      return () => { cancelled = true; };
+    }, [user?.uid])
+  );
 
   const renderSection = (title, data) => {
     const top = Object.entries(data).sort((a,b) => b[1]-a[1]).slice(0,5);

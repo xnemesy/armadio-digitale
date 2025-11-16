@@ -91,10 +91,36 @@ import { APP_ID } from '../config/appConfig';
 const itemsPath = `artifacts/${APP_ID}/users/${uid}/items`;
 const itemRef = firestore().collection(itemsPath).doc(itemId);
 
-// Storage uploads (src/screens/AddItemScreen.js ~line 180)
+// Storage uploads con dual files e compression (src/screens/AddItemScreen.js ~line 180)
+// 1. Thumbnail (150px wide, 70% quality, ~20-50KB)
+const thumb = await ImageManipulator.manipulateAsync(
+  localUri, 
+  [{ resize: { width: 150 } }],
+  { compress: 0.7, format: SaveFormat.JPEG }
+);
+const thumbRef = storage().ref(`${itemsPath}/${itemId}_thumb.jpg`);
+await thumbRef.putFile(thumb.uri, { cacheControl: 'public, max-age=31536000, immutable' });
+
+// 2. Full-size compressed (1600px wide, 85% quality, ~200-400KB)
+const optimizedFull = await ImageManipulator.manipulateAsync(
+  localUri,
+  [{ resize: { width: 1600 } }],
+  { compress: 0.85, format: SaveFormat.JPEG }
+);
 const storageRef = storage().ref(`${itemsPath}/${itemId}.jpg`);
-await storageRef.putFile(localUri);
+await storageRef.putFile(optimizedFull.uri, { cacheControl: 'public, max-age=31536000, immutable' });
 const downloadURL = await storageRef.getDownloadURL();
+const thumbnailURL = await thumbRef.getDownloadURL();
+
+// Firestore reads SEMPRE con paginazione e cache (src/screens/HomeScreen.js)
+// ❌ MAI usare onSnapshot (realtime costoso)
+// ✅ SEMPRE usare .get() con cache AsyncStorage
+const query = firestore()
+  .collection(itemsPath)
+  .orderBy('createdAt', 'desc')
+  .limit(50); // Pagination
+const snapshot = await query.get();
+await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(items)); // Persist cache
 ```
 
 ### 4. Authentication Context
@@ -178,6 +204,12 @@ Ensure `GOOGLE_WEB_CLIENT_ID` in `.env` and `app.config.js` → `extra.googleWeb
 
 ### 5. ESLint Ignores Screens
 `eslint.config.js` ignores `src/screens/**` during migration. Re-enable after cleanup.
+
+### 6. Firestore Reads Troppo Alte
+Check che HomeScreen usi `.get()` con cache, NON `onSnapshot`. Verifica presenza `AsyncStorage` cache e pull-to-refresh. Monitor via FirebaseMonitorScreen.
+
+### 7. Storage Bandwidth Alto
+Verifica che ItemCard usi `FastImage` con `cacheControl.immutableCache`. Check thumbnails presenti per tutti items. Run migration script se necessario.
 
 ## Code Organization Principles
 

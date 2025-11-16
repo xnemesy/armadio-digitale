@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Modal, Animated } from 'react-native';
-import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Modal, Animated, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import firestore, { getFirestore, collection, query, orderBy, limit, startAfter, getDocs } from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import debounce from 'lodash.debounce';
 import { Picker } from '@react-native-picker/picker';
@@ -13,16 +14,23 @@ import { APP_ID } from '../config/appConfig';
 const FILTER_STORAGE_KEY = '@armadio_filters';
 const SORT_STORAGE_KEY = '@armadio_sort';
 const ONBOARDING_STORAGE_KEY = '@armadio_onboarding_shown';
+const ITEMS_CACHE_KEY = '@armadio_items_cache';
+const PAGE_SIZE = 50; // Carica 50 items alla volta
 
-// Enhanced HomeScreen with filters, debounced search, sorting, and persistence
-const HomeScreen = ({ navigation, route }) => {
+// HomeScreen ottimizzato: letture cached con paginazione invece di realtime listener
+const HomeScreen = ({ navigation }) => {
     const { user } = useAuth();
     const { tokens } = useTheme();
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const lastDocRef = useRef(null);
+    
     const [filter, setFilter] = useState({ text: '', categories: [], colors: [], brands: [] });
     const [debouncedText, setDebouncedText] = useState('');
-    const [sortBy, setSortBy] = useState('date'); // 'date' | 'name' | 'brand'
+    const [sortBy, setSortBy] = useState('date');
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
     const [brands, setBrands] = useState([]);
@@ -31,7 +39,6 @@ const HomeScreen = ({ navigation, route }) => {
     const textInputRef = useRef(null);
     const modalAnimation = useRef(new Animated.Value(0)).current;
 
-    // Debounced text search (300ms delay)
     const debouncedSetText = useCallback(
         debounce((text) => {
             setDebouncedText(text);
@@ -44,7 +51,126 @@ const HomeScreen = ({ navigation, route }) => {
         debouncedSetText(text);
     };
 
-    // Load persisted filters and sort on mount
+    // Carica cache locale immediatamente per UX veloce
+    const loadFromCache = useCallback(async () => {
+        try {
+            const cacheKey = `${ITEMS_CACHE_KEY}_${user?.uid || 'none'}`;
+            const cached = await AsyncStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                setItems(parsed);
+                return true;
+            }
+        } catch (e) {
+            console.warn('Cache read error:', e);
+        }
+        return false;
+    }, [user?.uid]);
+
+    // Salva in cache dopo ogni fetch (converte Timestamp per serializzazione)
+    const saveToCache = useCallback(async (data) => {
+        try {
+            const cacheKey = `${ITEMS_CACHE_KEY}_${user?.uid || 'none'}`;
+            // Converti Firestore Timestamps in millisecondi prima di salvare
+            const serializable = data.map(item => ({
+                ...item,
+                createdAt: item.createdAt?.toMillis ? item.createdAt.toMillis() : item.createdAt
+            }));
+            await AsyncStorage.setItem(cacheKey, JSON.stringify(serializable));
+        } catch (e) {
+            console.warn('Cache write error:', e);
+        }
+    }, [user?.uid]);
+
+    // Fetch paginato (reset = prima pagina)
+    const fetchItems = useCallback(async (reset = false) => {
+        if (!user?.uid) return;
+        
+        const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+        const db = getFirestore();
+        let q = query(
+            collection(db, path),
+            orderBy('createdAt', 'desc'),
+            limit(PAGE_SIZE)
+        );
+
+        if (!reset && lastDocRef.current) {
+            q = query(
+                collection(db, path),
+                orderBy('createdAt', 'desc'),
+                startAfter(lastDocRef.current),
+                limit(PAGE_SIZE)
+            );
+        }
+
+        const snapshot = await getDocs(q);
+        const docs = snapshot?.docs || [];
+        const newItems = docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (reset) {
+            setItems(newItems);
+            await saveToCache(newItems);
+        } else {
+            setItems(prev => {
+                const merged = [...prev, ...newItems];
+                saveToCache(merged);
+                return merged;
+            });
+        }
+
+        lastDocRef.current = docs.length > 0 ? docs[docs.length - 1] : lastDocRef.current;
+        setHasMore(docs.length === PAGE_SIZE);
+    }, [user?.uid, saveToCache]);
+
+    // Init: carica cache velocemente, poi fetch fresh
+    useEffect(() => {
+        if (!user?.uid) return;
+        setLoadingItems(true);
+        loadFromCache().finally(async () => {
+            try {
+                await fetchItems(true);
+            } catch (err) {
+                console.error('Errore caricamento items:', err);
+            } finally {
+                setLoadingItems(false);
+            }
+        });
+    }, [user?.uid, loadFromCache, fetchItems]);
+
+    // Auto-refresh quando torni alla schermata (dopo add/delete)
+    useFocusEffect(
+        useCallback(() => {
+            if (user?.uid) {
+                fetchItems(true).catch(err => console.error('Focus refresh error:', err));
+            }
+        }, [user?.uid, fetchItems])
+    );
+
+    // Pull-to-refresh manuale
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await fetchItems(true);
+        } catch (e) {
+            console.error('Refresh error:', e);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [fetchItems]);
+
+    // Infinite scroll
+    const onEndReached = useCallback(async () => {
+        if (!hasMore || loadingMore || loadingItems) return;
+        setLoadingMore(true);
+        try {
+            await fetchItems(false);
+        } catch (e) {
+            console.error('Load more error:', e);
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [fetchItems, hasMore, loadingMore, loadingItems]);
+
     useEffect(() => {
         const loadPersistedState = async () => {
             try {
@@ -61,7 +187,6 @@ const HomeScreen = ({ navigation, route }) => {
                 if (savedSort) {
                     setSortBy(savedSort);
                 }
-                // Show onboarding if first time
                 if (!onboardingShown) {
                     setTimeout(() => setIsOnboardingVisible(true), 800);
                 }
@@ -72,7 +197,6 @@ const HomeScreen = ({ navigation, route }) => {
         loadPersistedState();
     }, []);
 
-    // Persist filters whenever they change
     useEffect(() => {
         const saveFilters = async () => {
             try {
@@ -84,7 +208,6 @@ const HomeScreen = ({ navigation, route }) => {
         saveFilters();
     }, [filter]);
 
-    // Persist sort whenever it changes
     useEffect(() => {
         const saveSort = async () => {
             try {
@@ -95,25 +218,6 @@ const HomeScreen = ({ navigation, route }) => {
         };
         saveSort();
     }, [sortBy]);
-
-    useEffect(() => {
-        if (!user || !user.uid) return;
-        setLoadingItems(true);
-        const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-        const itemsCollection = collection(firestore(), path);
-    
-        const unsubscribe = onSnapshot(itemsCollection, snapshot => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            data.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-            setItems(data);
-            setLoadingItems(false);
-        }, err => {
-            console.error('Errore caricamento items:', err);
-            setLoadingItems(false);
-        });
-    
-        return () => unsubscribe();
-    }, [user]);
 
     useEffect(() => {
         setCategories([...new Set(items.map(i => i.category).filter(Boolean))]);
@@ -131,7 +235,6 @@ const HomeScreen = ({ navigation, route }) => {
             return matchesText && matchesCategory && matchesColor && matchesBrand;
         });
 
-        // Apply sorting
         filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'name':
@@ -140,7 +243,10 @@ const HomeScreen = ({ navigation, route }) => {
                     return (a.brand || '').localeCompare(b.brand || '');
                 case 'date':
                 default:
-                    return (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0);
+                    // Gestisce sia Timestamp (da Firestore) che number (da cache)
+                    const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt || 0);
+                    const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt || 0);
+                    return bTime - aTime;
             }
         });
 
@@ -182,13 +288,13 @@ const HomeScreen = ({ navigation, route }) => {
         }
     };
 
-    const renderItem = ({ item, index }) => (
+    const renderItem = ({ item }) => (
         <View style={styles.cardWrapper}>
             <ItemCard item={item} onPress={() => navigation.navigate('Detail', { item })} />
         </View>
     );
 
-    if (loadingItems) {
+    if (loadingItems && items.length === 0) {
         return (
             <View style={[styles.loadingSkeletonContainer, { backgroundColor: tokens.colors.background }]}>
                 {[0, 1, 2].map(row => (
@@ -208,7 +314,6 @@ const HomeScreen = ({ navigation, route }) => {
 
     return (
         <View style={[styles.container, { backgroundColor: tokens.colors.background }]}>
-            {/* Header compatto senza ricerca */}
             <View style={[styles.header, { backgroundColor: tokens.colors.surface, borderBottomColor: tokens.colors.border }]}> 
                 <Text style={[styles.headerTitle, { color: tokens.colors.textPrimary }]}>Il Mio Armadio</Text>
                 <View style={styles.headerRow}>
@@ -229,7 +334,6 @@ const HomeScreen = ({ navigation, route }) => {
                 </View>
             </View>
 
-            {/* Grid - Più spazio per le foto! */}
             {filteredItems.length === 0 ? (
                 <View style={styles.emptyState}> 
                     <Text style={styles.emptyIcon}>👚</Text>
@@ -247,10 +351,26 @@ const HomeScreen = ({ navigation, route }) => {
                     columnWrapperStyle={styles.row}
                     contentContainerStyle={styles.gridContainer}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={tokens.colors.accent}
+                            colors={[tokens.colors.accent]}
+                        />
+                    }
+                    onEndReached={onEndReached}
+                    onEndReachedThreshold={0.5}
+                    ListFooterComponent={
+                        loadingMore ? (
+                            <View style={styles.loadingMore}>
+                                <Text style={{ color: tokens.colors.textSecondary }}>Caricamento...</Text>
+                            </View>
+                        ) : null
+                    }
                 />
             )}
 
-            {/* FAB Search Button */}
             <TouchableOpacity 
                 style={[styles.fabButton, { backgroundColor: tokens.colors.accent }]}
                 onPress={openSearchModal}
@@ -259,7 +379,6 @@ const HomeScreen = ({ navigation, route }) => {
                 <Search size={24} color="#FFFFFF" />
             </TouchableOpacity>
 
-            {/* Search Modal Overlay */}
             <Modal
                 visible={isSearchModalVisible}
                 transparent
@@ -269,9 +388,7 @@ const HomeScreen = ({ navigation, route }) => {
                 <Animated.View 
                     style={[
                         styles.modalOverlay,
-                        {
-                            opacity: modalAnimation,
-                        }
+                        { opacity: modalAnimation }
                     ]}
                 >
                     <TouchableOpacity 
@@ -294,7 +411,6 @@ const HomeScreen = ({ navigation, route }) => {
                             }
                         ]}
                     >
-                        {/* Modal Header */}
                         <View style={[styles.modalHeader, { borderBottomColor: tokens.colors.border }]}>
                             <Text style={[styles.modalTitle, { color: tokens.colors.textPrimary }]}>Ricerca e Filtri</Text>
                             <TouchableOpacity onPress={closeSearchModal} style={styles.closeButton}>
@@ -302,7 +418,6 @@ const HomeScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Search Input */}
                         <View style={styles.searchRow}>
                             <TextInput
                                 ref={textInputRef}
@@ -329,7 +444,6 @@ const HomeScreen = ({ navigation, route }) => {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Filters */}
                         <View style={styles.pillsContainer}>
                             {[
                                 { key: 'categories', data: categories, label: 'Categoria' }, 
@@ -367,7 +481,6 @@ const HomeScreen = ({ navigation, route }) => {
                             ))}
                         </View>
 
-                        {/* Results count */}
                         <View style={styles.modalFooter}>
                             <Text style={[styles.resultsText, { color: tokens.colors.textSecondary }]}>
                                 {filteredItems.length} risultat{filteredItems.length !== 1 ? 'i' : 'o'}
@@ -383,7 +496,6 @@ const HomeScreen = ({ navigation, route }) => {
                 </Animated.View>
             </Modal>
 
-            {/* Onboarding Modal */}
             <OnboardingModal 
                 visible={isOnboardingVisible}
                 onClose={closeOnboarding}
@@ -439,7 +551,6 @@ const styles = StyleSheet.create({
         borderRadius: 6 
     },
     
-    // Grid Layout - Fixed
     gridContainer: {
         paddingHorizontal: 16,
         paddingTop: 12,
@@ -478,7 +589,6 @@ const styles = StyleSheet.create({
         width: '50%',
     },
     
-    // FAB Button
     fabButton: {
         position: 'absolute',
         bottom: 90,
@@ -495,7 +605,11 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
     },
     
-    // Modal Styles
+    loadingMore: {
+        paddingVertical: 20,
+        alignItems: 'center',
+    },
+    
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.6)',

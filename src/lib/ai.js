@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 
 export const analyzeImageWithGemini = async (base64Image) => {
   const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage';
@@ -67,7 +67,7 @@ export const getOutfitSuggestion = async (availableItems, userRequest) => {
       // Recupera ID token Firebase se utente autenticato
       let idToken = null;
       try {
-        const currentUser = auth().currentUser;
+        const currentUser = getAuth().currentUser;
         if (currentUser) idToken = await currentUser.getIdToken();
       } catch {}
 

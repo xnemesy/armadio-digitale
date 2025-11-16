@@ -11,7 +11,7 @@
 
 import { Platform } from 'react-native';
 import { appleAuth, appleAuthAndroid } from '@invertase/react-native-apple-authentication';
-import auth from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 
 /**
  * Verifica se Apple Sign-In è supportato sul dispositivo
@@ -75,8 +75,8 @@ export const signInWithApple = async () => {
     // 4. Crea credenziale Firebase
     const appleCredential = auth.AppleAuthProvider.credential(identityToken, nonce);
 
-    // 5. Sign in su Firebase con credenziale Apple
-    const userCredential = await auth().signInWithCredential(appleCredential);
+    // 5. Sign in su Firebase con credenziale Apple (modular API)
+    const userCredential = await getAuth().signInWithCredential(appleCredential);
 
     // 6. Aggiorna displayName se fornito da Apple (solo al primo login)
     if (fullName && !userCredential.user.displayName) {

@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, Alert, TextInput, ScrollView, Platform, K
 import Animated, { FadeIn } from 'react-native-reanimated';
 import FastImage from 'react-native-fast-image';
 import { ChevronLeft } from 'lucide-react-native';
-import storage from '@react-native-firebase/storage';
-import firestore, { doc, setDoc, deleteDoc } from '@react-native-firebase/firestore';
+import storage, { getStorage } from '@react-native-firebase/storage';
+import firestore, { doc, setDoc, deleteDoc, getFirestore } from '@react-native-firebase/firestore';
 import { useTheme } from '../contexts/ThemeContext';
 import { APP_ID } from '../config/appConfig';
 
@@ -18,7 +18,7 @@ const DetailScreen = ({ navigation, route }) => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
+      const itemRef = doc(getFirestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
       await setDoc(itemRef, editedMetadata, { merge: true });
       setEditing(false);
       Alert.alert('Successo', 'Modifiche salvate!');
@@ -43,12 +43,12 @@ const DetailScreen = ({ navigation, route }) => {
             try {
               if (item.storagePath) {
                 // Delete full-size
-                await storage().ref(item.storagePath).delete();
+                await getStorage().ref(item.storagePath).delete();
                 // Delete thumbnail if exists (derived from storagePath)
                 const thumbPath = item.storagePath.replace(/\.jpg$/i, '_thumb.jpg');
-                try { await storage().ref(thumbPath).delete(); } catch (_) {}
+                try { await getStorage().ref(thumbPath).delete(); } catch (_) {}
               }
-              const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
+              const itemRef = doc(getFirestore(), `artifacts/${APP_ID}/users/${item.userId}/items`, item.id);
               await deleteDoc(itemRef);
               Alert.alert('Successo', 'Capo eliminato');
               navigation.goBack();

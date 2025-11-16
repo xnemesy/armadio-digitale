@@ -26,7 +26,9 @@
     "format:check": "prettier --check \"**/*.{js,jsx,json,md}\"",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "clean:repo": "powershell -NoProfile -Command \"if (Test-Path 'coverage') { Remove-Item -Recurse -Force 'coverage' }; if (Test-Path 'android_google.b64') { Remove-Item -Force 'android_google.b64' }; if (Test-Path 'ios_plist.b64') { Remove-Item -Force 'ios_plist.b64' }; if (Test-Path 'src\\screens\\HomeScreen_OLD.js') { Remove-Item -Force 'src\\screens\\HomeScreen_OLD.js' }\"",
+    "clean:android": "powershell -NoProfile -Command \"$ErrorActionPreference='SilentlyContinue'; if (Test-Path '.\\android\\app\\build') { Remove-Item -Recurse -Force '.\\android\\app\\build' }; if (Test-Path '.\\android\\build') { Remove-Item -Recurse -Force '.\\android\\build' }; if (Test-Path '.\\android\\.gradle') { Remove-Item -Recurse -Force '.\\android\\.gradle' }; Push-Location android; if (Test-Path '.\\gradlew.bat') { .\\gradlew.bat clean } else { ./gradlew clean }; Pop-Location; Write-Output 'Android clean completo'\""
   },
   "dependencies": {
     "@google-cloud/datalabeling": "^5.1.1",

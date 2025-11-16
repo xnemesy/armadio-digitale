@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import auth from '@react-native-firebase/auth';
-import firestore, { collection, getDocs } from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
+import { getAuth } from '@react-native-firebase/auth';
+import { collection, getDocs, getFirestore, doc as fsDoc, deleteDoc } from '@react-native-firebase/firestore';
+import { getStorage } from '@react-native-firebase/storage';
 import { Alert, Platform } from 'react-native';
 import { APP_ID } from '../config/appConfig';
 import { signInWithGoogle as googleSignIn, signOutFromGoogle, configureGoogleSignIn } from '../lib/googleAuth';
@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }) => {
 
   // Monitor auth state changes
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged((userState) => {
+    const authInstance = getAuth();
+    const unsubscribe = authInstance.onAuthStateChanged((userState) => {
       setUser(userState);
       if (initializing) setInitializing(false);
       setLoading(false);
@@ -40,7 +41,8 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     try {
       setLoading(true);
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      const authInstance = getAuth();
+      const userCredential = await authInstance.signInWithEmailAndPassword(email, password);
       return { success: true, user: userCredential.user };
     } catch (error) {
       console.error('Sign in error:', error);
@@ -77,7 +79,8 @@ export const AuthProvider = ({ children }) => {
   const signUp = async (email, password) => {
     try {
       setLoading(true);
-      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      const authInstance = getAuth();
+      const userCredential = await authInstance.createUserWithEmailAndPassword(email, password);
       
       // Send email verification
       await userCredential.user.sendEmailVerification();
@@ -121,7 +124,7 @@ export const AuthProvider = ({ children }) => {
       await signOutFromGoogle();
       
       // Sign out da Firebase
-      await auth().signOut();
+      await getAuth().signOut();
       return { success: true };
     } catch (error) {
       console.error('Sign out error:', error);
@@ -174,7 +177,7 @@ export const AuthProvider = ({ children }) => {
   // Reset password
   const resetPassword = async (email) => {
     try {
-      await auth().sendPasswordResetEmail(email);
+      await getAuth().sendPasswordResetEmail(email);
       return { 
         success: true, 
         message: 'Email di reset inviata. Controlla la tua casella di posta.' 
@@ -199,7 +202,7 @@ export const AuthProvider = ({ children }) => {
   // Update user profile
   const updateUserProfile = async (displayName, photoURL) => {
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         return { success: false, error: 'Nessun utente connesso' };
       }
@@ -222,7 +225,7 @@ export const AuthProvider = ({ children }) => {
   // Resend email verification
   const resendEmailVerification = async () => {
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         return { success: false, error: 'Nessun utente connesso' };
       }
@@ -242,7 +245,7 @@ export const AuthProvider = ({ children }) => {
   const deleteAccount = async () => {
     try {
       setLoading(true);
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         return { success: false, error: 'Nessun utente connesso' };
       }
@@ -252,7 +255,7 @@ export const AuthProvider = ({ children }) => {
       const itemsPath = `${userPath}/items`;
 
       // Step 1: Delete all user items from Firestore
-      const itemsCollection = collection(firestore(), itemsPath);
+      const itemsCollection = collection(getFirestore(), itemsPath);
       const itemsSnapshot = await getDocs(itemsCollection);
       const deletePromises = [];
 
@@ -263,7 +266,7 @@ export const AuthProvider = ({ children }) => {
         // Delete images from Storage
         if (itemData.thumbnailUrl) {
           try {
-            const thumbnailRef = storage().refFromURL(itemData.thumbnailUrl);
+            const thumbnailRef = getStorage().refFromURL(itemData.thumbnailUrl);
             deletePromises.push(thumbnailRef.delete().catch(console.error));
           } catch (error) {
             console.error('Error deleting thumbnail:', error);
@@ -273,7 +276,7 @@ export const AuthProvider = ({ children }) => {
         if (itemData.imageUrls && Array.isArray(itemData.imageUrls)) {
           for (const imageUrl of itemData.imageUrls) {
             try {
-              const imageRef = storage().refFromURL(imageUrl);
+              const imageRef = getStorage().refFromURL(imageUrl);
               deletePromises.push(imageRef.delete().catch(console.error));
             } catch (error) {
               console.error('Error deleting image:', error);
@@ -290,7 +293,8 @@ export const AuthProvider = ({ children }) => {
 
       // Step 2: Delete user metadata document if exists
       try {
-        await firestore().doc(userPath).delete();
+        const userDocRef = fsDoc(getFirestore(), userPath);
+        await deleteDoc(userDocRef);
       } catch (error) {
         console.error('Error deleting user metadata:', error);
       }

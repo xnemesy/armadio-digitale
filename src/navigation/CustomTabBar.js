@@ -30,10 +30,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         </View>
         <View style={styles.centerSpacer} />
         <View style={styles.sideContainer}>
-          {state.routes.slice(3, 5).map((route, index) => {
+          {state.routes.slice(3, 5).map((route, sliceIndex) => {
             const { options } = descriptors[route.key];
             const label = options.tabBarLabel;
-            const isFocused = state.index === index + 3;
+            const actualIndex = 3 + sliceIndex; // Indice assoluto nello state (3 o 4)
+            const isFocused = state.index === actualIndex;
             const onPress = () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });

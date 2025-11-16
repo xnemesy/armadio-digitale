@@ -11,12 +11,15 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
   - **Brand**: Marca + sotto-marca (es: "Nike Jordan", "Adidas Originals")
   - **Colore**: Sfumature precise (es: "Nero Lucido/Rosso" invece di solo "Nero")
   - **Categoria**: Sottocategorie specifiche (es: "Scarpe Sportive/Sneakers")
-- ⚡ **Ottimizzazione Performance Immagini**:
-  - **Thumbnails automatici**: Generazione 150x200px (JPEG 70%) durante upload
+- ⚡ **Ottimizzazione Performance & Costi**:
+  - **Thumbnails automatici**: Generazione 150px wide (JPEG 70%) durante upload (~20-50KB)
+  - **Full-size compressa**: 1600px wide, 85% quality (~200-400KB) - riduce Storage del 60-80%
   - **FastImage cache**: Caching aggressivo con immutable control (zero re-download)
-  - **Dual storage**: Thumbnail per liste (~5-10KB) + full-size per dettagli (~500KB-2MB)
-  - **Monitor Firebase integrato**: Dashboard in-app per statistiche Storage/banda/cache
-  - **~90% riduzione banda**: Caricamento liste 10-20x più veloce vs full-size
+  - **Dual storage**: Thumbnail per liste + full-size compressa per dettagli
+  - **Firestore ottimizzato**: Letture paginate (50 items/volta) + AsyncStorage cache invece di realtime listener
+  - **~98% riduzione reads**: Da ~30k a ~600 reads/mese per utente medio
+  - **Auto-cleanup**: Eliminazione automatica thumbnails quando item viene cancellato
+  - **Monitor Firebase integrato**: Dashboard in-app per statistiche Storage/Firestore/cache
 - 🔍 **Filtri Avanzati**: Ricerca per testo, categoria, colore, brand con debouncing
 - 🗂️ **Ordinamento**: Ordina per data, nome o brand
 - 💾 **Persistenza**: Filtri e sort salvati automaticamente tra sessioni
@@ -34,10 +37,23 @@ App mobile per gestire il proprio guardaroba digitale con analisi AI tramite Gem
   - **Cloud**: Gemini 2.0 Flash Exp via Cloud Functions con prompt fashion-expert (nomi/brand precisi)
   - **Strategia**: Local-first con fallback intelligente basato su confidence threshold (70%)
 - **Performance**:
-  - **Image Optimization**: expo-image-manipulator per thumbnail client-side (150x200px JPEG 70%)
-  - **Caching**: react-native-fast-image con immutable cache control (zero re-download)
-  - **Dual Storage**: Thumbnail per liste + full-size per dettagli (Storage paths separati)
-  - **Monitoring**: FirebaseMonitorScreen integrato per stats real-time
+  - **Image Optimization**: 
+    - Thumbnails 150px wide (JPEG 70%, ~20-50KB) per liste veloci
+    - Full-size compressa 1600px (85% quality, ~200-400KB) per dettagli
+    - expo-image-manipulator per processing client-side
+  - **Caching Strategy**: 
+    - react-native-fast-image con immutable cache headers
+    - AsyncStorage per cache locale items Firestore
+    - Pull-to-refresh manuale invece di realtime listeners
+  - **Firestore Reads Optimization**:
+    - Paginazione 50 items/volta con `.get()` invece di `onSnapshot`
+    - Cache locale persistente riduce reads del ~98%
+    - Da ~30k a ~600 reads/mese per utente medio
+  - **Storage Optimization**:
+    - Dual files strategy (thumb + full compressed)
+    - Auto-cleanup thumbnails on delete
+    - Immutable cache headers per CDN caching
+  - **Monitoring**: FirebaseMonitorScreen integrato per metrics real-time
 - **State**: React Hooks + AsyncStorage per persistenza
 - **Animations**: Reanimated 3 + PressableScale component
 - **Design System**: Design tokens + ThemeContext per dark/light mode

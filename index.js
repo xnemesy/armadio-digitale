@@ -1,6 +1,8 @@
 import { registerRootComponent } from 'expo';
 import { getTokens } from './src/design/tokens';
 
+// Firebase modular deprecation warnings should now be resolved across the app
+
 // Ensure a safe tokens fallback BEFORE loading any other modules
 if (typeof global !== 'undefined' && !global.tokens) {
   try {

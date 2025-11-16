@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { ChevronLeft, Database, HardDrive, Activity, Image as ImageIcon } from 'lucide-react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { getFirestore, collection, getDocs } from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import FastImage from 'react-native-fast-image';
 import { APP_ID } from '../config/appConfig';
@@ -87,7 +87,8 @@ const FirebaseMonitorScreen = ({ navigation, route }) => {
     const loadStats = async () => {
         try {
             const itemsPath = `artifacts/${APP_ID}/users/${user.uid}/items`;
-            const snapshot = await firestore().collection(itemsPath).get();
+            const db = getFirestore();
+            const snapshot = await getDocs(collection(db, itemsPath));
             
             let thumbnailsCount = 0;
             let fullSizeCount = 0;

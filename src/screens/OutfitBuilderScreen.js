@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import firestore, { collection, onSnapshot } from '@react-native-firebase/firestore';
+import { collection, getDocs, getFirestore } from '@react-native-firebase/firestore';
 import { ChevronLeft, Zap } from 'lucide-react-native';
 import { getOutfitSuggestion } from '../lib/ai';
 import { APP_ID } from '../config/appConfig';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const OutfitBuilderScreen = ({ navigation, route }) => {
     const { user } = useAuth();
@@ -16,16 +17,28 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
     const [items, setItems] = useState([]);
     const [loadingItems, setLoadingItems] = useState(true);
 
-    useEffect(() => {
-        if (!user?.uid) return;
-        const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
-        const itemsCollection = collection(firestore(), path);
-        const unsub = onSnapshot(itemsCollection, s => {
-            setItems(s.docs.map(d => ({ id: d.id, ...d.data() })));
-            setLoadingItems(false);
-        }, () => setLoadingItems(false));
-        return () => unsub();
-    }, [user]);
+    useFocusEffect(
+        useCallback(() => {
+            let cancelled = false;
+            const run = async () => {
+                if (!user?.uid) return;
+                setLoadingItems(true);
+                try {
+                    const path = `artifacts/${APP_ID}/users/${user.uid}/items`;
+                    const itemsCollection = collection(getFirestore(), path);
+                    const s = await getDocs(itemsCollection);
+                    if (cancelled) return;
+                    setItems(s.docs.map(d => ({ id: d.id, ...d.data() })));
+                } catch (e) {
+                    // keep items as-is on error
+                } finally {
+                    if (!cancelled) setLoadingItems(false);
+                }
+            };
+            run();
+            return () => { cancelled = true; };
+        }, [user?.uid])
+    );
 
     const handleGenerate = async () => {
         if (!request.trim()) return;

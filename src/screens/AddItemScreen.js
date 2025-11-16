@@ -3,8 +3,8 @@ import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, Acti
 import { Camera, Image as ImageIcon, ChevronLeft } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import storage from '@react-native-firebase/storage';
-import firestore, { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
+import { getStorage } from '@react-native-firebase/storage';
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp, getFirestore } from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
 import { classifyClothingFromUri } from '../ml/executorchClient';
 import { ML_CONFIG } from '../ml/config';
@@ -108,7 +108,7 @@ const AddItemScreen = ({ navigation, route }) => {
     };
 
     const checkDuplicate = async (aiMetadata) => {
-        const itemsRef = collection(firestore(), `artifacts/${APP_ID}/users/${user.uid}/items`);
+        const itemsRef = collection(getFirestore(), `artifacts/${APP_ID}/users/${user.uid}/items`);
         const q = query(itemsRef, where('category', '==', aiMetadata.category), where('mainColor', '==', aiMetadata.mainColor));
         const snapshot = await getDocs(q);
         if (!snapshot.empty) return snapshot.docs[0].data();
@@ -177,7 +177,7 @@ const AddItemScreen = ({ navigation, route }) => {
             const thumbnail = await ImageManipulator.manipulateAsync(
                 imageLocalUri,
                 [{ resize: { width: 150 } }],
-                { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                { compress: 0.7, format: 'jpeg' }
             );
             
             setStatus('Upload immagini...');
@@ -190,21 +190,21 @@ const AddItemScreen = ({ navigation, route }) => {
             
             // Upload thumbnail first (fast preview)
             const thumbPath = `${basePath}_thumb.jpg`;
-            const thumbRef = storage().ref(thumbPath);
-            await thumbRef.putFile(thumbnail.uri, { metadata: cacheMetadata });
+            const thumbRef = getStorage().ref(thumbPath);
+            await thumbRef.putFile(thumbnail.uri, cacheMetadata);
             const thumbnailUrl = await thumbRef.getDownloadURL();
             
             // Optimize full-size image (resize + compress) before upload
             const optimizedFull = await ImageManipulator.manipulateAsync(
                 imageLocalUri,
                 [{ resize: { width: 1600 } }],
-                { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
+                { compress: 0.85, format: 'jpeg' }
             );
 
             // Upload full-size image
             const fullPath = `${basePath}.jpg`;
-            const fullRef = storage().ref(fullPath);
-            await fullRef.putFile(optimizedFull.uri, { metadata: cacheMetadata });
+            const fullRef = getStorage().ref(fullPath);
+            await fullRef.putFile(optimizedFull.uri, cacheMetadata);
             const fullSizeUrl = await fullRef.getDownloadURL();
             
             const itemData = {
@@ -215,7 +215,7 @@ const AddItemScreen = ({ navigation, route }) => {
                 fullSizeUrl,
                 createdAt: serverTimestamp(),
             };
-            const itemRef = doc(firestore(), `artifacts/${APP_ID}/users/${user.uid}/items`, itemId);
+            const itemRef = doc(getFirestore(), `artifacts/${APP_ID}/users/${user.uid}/items`, itemId);
             await setDoc(itemRef, itemData);
             Alert.alert('Successo', 'Capo aggiunto!');
             navigation.goBack();
@@ -292,7 +292,7 @@ const AddItemScreen = ({ navigation, route }) => {
                         <View style={styles.recommendations}>
                             <Text style={styles.recommendationsTitle}>Suggerimenti di Articoli Correlati</Text>
                             {recommendations.map((rec, idx) => (
-                                    <TouchableOpacity key={`rec-${index}`} onPress={() => Linking.openURL(rec.url)} style={styles.recommendationLink}>
+                                    <TouchableOpacity key={`rec-${idx}`} onPress={() => Linking.openURL(rec.url)} style={styles.recommendationLink}>
                                     <Text style={{ color: tokens.colors.accent, fontWeight: '500', fontSize: 14 }}>{rec.title} →</Text>
                                 </TouchableOpacity>
                             ))}
