@@ -2,46 +2,34 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
+    // Funzione helper per verificare il piano
+    function isPro() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'pro';
+    }
+
+    // Conteggio items (Attenzione: count() costa letture, ma per < 20 items è trascurabile)
+    // Per scalare, si dovrebbe tenere un contatore denormalizzato su users/{uid}/stats
+    
+    match /artifacts/{appId}/users/{userId}/items/{itemId} {
+      allow read: if request.auth.uid == userId;
+      
+      allow create: if request.auth.uid == userId
+                    && (
+                      isPro() || 
+                      // Se Free, conta quanti documenti esistono già. 
+                      // NOTA: count() nelle rules è una feature recente, controlla compatibilità o usa contatore
+                      // Alternativa semplice per MVP: blocca se ID > 'item_20' (brutto ma gratis)
+                      // Alternativa corretta: leggi il contatore da users/uid/private/usage
+                      get(/databases/$(database)/documents/users/$(userId)/private/usage).data.itemsCount < 20
+                    );
+
+      allow update, delete: if request.auth.uid == userId;
     }
     
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    // Artifacts collection (multi-tenancy support)
-    match /artifacts/{appId}/users/{userId} {
-      // User metadata document
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
-      
-      // User items subcollection
-      match /items/{itemId} {
-        // Only authenticated user can access their own items
-        allow read: if isOwner(userId);
-        allow create: if isOwner(userId) 
-                      && request.resource.data.keys().hasAll(['name', 'createdAt'])
-                      && request.resource.data.createdAt is timestamp;
-        allow update: if isOwner(userId);
-        allow delete: if isOwner(userId);
-      }
-      
-      // User outfits subcollection (future feature)
-      match /outfits/{outfitId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      // User preferences subcollection
-      match /preferences/{docId} {
-        allow read, write: if isOwner(userId);
-      }
-    }
-    
-    // Block all other paths
-    match /{document=**} {
-      allow read, write: if false;
+    // Protezione documento usage
+    match /users/{userId}/private/usage {
+      allow read: if request.auth.uid == userId;
+      allow write: if false; // Solo Cloud Functions (Admin SDK) possono scrivere qui!
     }
   }
 }

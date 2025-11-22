@@ -33,6 +33,66 @@ const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minuto
 const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 richieste al minuto per IP
 
+// Configurazione Piani
+const PLANS = {
+  free: {
+    maxItems: 20,
+    maxDailyOutfits: 3,
+    canUseAdvancedModels: false // Esempio per il futuro
+  },
+  pro: {
+    maxItems: 9999,
+    maxDailyOutfits: 50,
+    canUseAdvancedModels: true
+  }
+};
+
+// Helper per ottenere il piano utente (Default: free)
+async function getUserPlan(uid) {
+  const userDoc = await firestore.collection('users').doc(uid).get();
+  const userData = userDoc.data() || {};
+  // Se il campo 'plan' non esiste o è scaduto, fallback su 'free'
+  return PLANS[userData.plan] ? userData.plan : 'free';
+}
+
+/**
+ * IL BUTTAFUORI: Gestione Quota Giornaliera "Lazy Reset"
+ * Controlla se l'utente può generare un outfit.
+ * Se è un nuovo giorno, resetta il contatore automaticamente.
+ */
+async function checkAndIncrementOutfitQuota(uid) {
+  const userUsageRef = firestore.collection('users').doc(uid).collection('private').doc('usage');
+  const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  return firestore.runTransaction(async (t) => {
+    const usageDoc = await t.get(userUsageRef);
+    const planType = await getUserPlan(uid); // Potresti passarlo da fuori per ottimizzare
+    const limits = PLANS[planType];
+
+    let currentData = usageDoc.data() || {};
+    
+    // Reset giornaliero se la data è cambiata
+    if (currentData.lastOutfitDate !== todayStr) {
+      currentData = {
+        outfitsCount: 0,
+        lastOutfitDate: todayStr
+      };
+    }
+
+    if (currentData.outfitsCount >= limits.maxDailyOutfits) {
+      throw new Error(`Quota giornaliera raggiunta (${limits.maxDailyOutfits} outfit). Passa a PRO per averne di più.`);
+    }
+
+    // Incrementa
+    t.set(userUsageRef, {
+      outfitsCount: currentData.outfitsCount + 1,
+      lastOutfitDate: todayStr
+    }, { merge: true });
+
+    return { allowed: true, remaining: limits.maxDailyOutfits - (currentData.outfitsCount + 1) };
+  });
+}
+
 /**
  * Rate limiter middleware
  */
@@ -427,9 +487,22 @@ functions.http('generateOutfit', async (req, res) => {
 
   // 1. 🔒 SICUREZZA
   if (!(await enforceAuth(req, res))) return;
-  
+  const uid = req.user.uid;
+
   if (req.method === 'OPTIONS') {
     return res.status(204).send('');
+  }
+
+  // 2. BUSINESS CHECK (Il nuovo blocco)
+  try {
+      await checkAndIncrementOutfitQuota(uid);
+  } catch (quotaError) {
+      console.warn(`💰 Quota exceeded for user ${uid}: ${quotaError.message}`);
+      return res.status(403).json({ 
+          success: false, 
+          error: quotaError.message,
+          code: 'QUOTA_EXCEEDED' // Codice utile per il frontend per mostrare il paywall
+      });
   }
   
   // Rate limiting (opzionale, ma mantenuto per difesa aggiuntiva)
@@ -503,3 +576,23 @@ Regole:
     return res.status(500).json({ success: false, error: error.message, suggestion: '' });
   }
 });
+
+// Trigger Firestore: Quando un item viene creato o cancellato
+functions.firestore.document('artifacts/{appId}/users/{userId}/items/{itemId}')
+  .onWrite(async (change, context) => {
+      const userId = context.params.userId;
+      const usageRef = firestore.collection('users').doc(userId).collection('private').doc('usage');
+      
+      let increment = 0;
+      if (!change.before.exists && change.after.exists) {
+          increment = 1; // Creato
+      } else if (change.before.exists && !change.after.exists) {
+          increment = -1; // Cancellato
+      } else {
+          return null; // Solo update, niente cambio numero
+      }
+
+      return usageRef.set({
+          itemsCount: admin.firestore.FieldValue.increment(increment)
+      }, { merge: true });
+  });
