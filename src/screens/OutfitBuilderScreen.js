@@ -35,7 +35,7 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
         // onSnapshot è fondamentale qui: aggiorna la UI appena la Cloud Function scrive sul DB
         const unsubscribe = onSnapshot(usageRef, (docSnap) => {
             if (docSnap.exists) {
-                const data = docSnap.data();
+                const data = docSnap.data() || {};
                 // Reset locale visivo se la data è vecchia (il backend lo fa comunque, ma per la UI aiuta)
                 const today = new Date().toISOString().split('T')[0];
                 if (data.lastOutfitDate !== today) {
@@ -46,6 +46,9 @@ const OutfitBuilderScreen = ({ navigation, route }) => {
                         lastOutfitDate: data.lastOutfitDate 
                     });
                 }
+            } else {
+                // Se il documento non esiste (nuovo utente), inizializza a zero
+                setUsageData({ outfitsCount: 0, lastOutfitDate: new Date().toISOString().split('T')[0] });
             }
         });
 
