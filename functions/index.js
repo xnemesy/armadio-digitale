@@ -79,6 +79,20 @@ async function verifyFirebaseAuth(req) {
   return decoded; // contiene uid, email, ecc.
 }
 
+// Middleware AUTH universale (o quasi)
+const enforceAuth = async (req, res) => {
+    if (req.method === 'OPTIONS') return true; // Preflight pass
+    try {
+        const user = await verifyFirebaseAuth(req);
+        req.user = user; // Allega utente alla request
+        return true;
+    } catch (e) {
+        console.warn(`⛔ Auth failed: ${e.message}`);
+        res.status(401).json({ success: false, error: 'Unauthorized' });
+        return false;
+    }
+};
+
 /**
  * Recupera la Gemini API key da Secret Manager
  */
@@ -123,6 +137,9 @@ async function getGeminiApiKey() {
  * }
  */
 functions.http('analyzeImage', async (req, res) => {
+  // 1. 🔒 SICUREZZA PRIMA DI TUTTO
+  if (!(await enforceAuth(req, res))) return;
+
   const startTime = Date.now();
   const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
   
@@ -373,158 +390,7 @@ IMPORTANTE:
   }
 });
 
-/**
- * Cloud Function HTTP endpoint per suggerimenti shopping con Gemini + Google Search
- * 
- * Request Body:
- * {
- *   "itemDescription": "Stivali marrone chiaro in pelle"
- * }
- * 
- * Response:
- * {
- *   "success": true,
- *   "recommendations": [
- *     {
- *       "title": "Stivali in pelle marrone - Amazon",
- *       "url": "https://..."
- *     }
- *   ]
- * }
- */
-functions.http('getShoppingRecommendations', async (req, res) => {
-  const startTime = Date.now();
-  const clientIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress || 'unknown';
-  
-  const logContext = {
-    clientIp,
-    method: req.method,
-    userAgent: req.headers['user-agent'] || 'unknown',
-    timestamp: new Date().toISOString()
-  };
 
-  console.log('🛍️ Incoming shopping request:', JSON.stringify(logContext));
-
-  // CORS headers
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(204).send('');
-  }
-
-  const rateLimitResult = checkRateLimit(clientIp);
-  if (rateLimitResult.limited) {
-    res.set('Retry-After', rateLimitResult.retryAfter.toString());
-    return res.status(429).json({
-      success: false,
-      error: 'Troppe richieste',
-      retryAfter: rateLimitResult.retryAfter
-    });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'Metodo non consentito. Usa POST.'
-    });
-  }
-
-  try {
-    const { itemDescription } = req.body;
-
-    if (!itemDescription || typeof itemDescription !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Parametro itemDescription mancante'
-      });
-    }
-
-    console.log('🛍️ Shopping query:', itemDescription);
-
-    const apiKey = await getGeminiApiKey();
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash-exp'
-    });
-
-    // Nuovo approccio: genera query di ricerca specifiche invece di cercare link diretti
-    const userQuery = `Sei un esperto di moda e shopping online. 
-    
-Per l'articolo: "${itemDescription}"
-
-Genera 3 suggerimenti di ricerca per trovare articoli simili online. Ogni suggerimento deve essere:
-- Una query di ricerca ottimizzata per Google Shopping
-- Include brand popolari o alternative
-- Specifica caratteristiche distintive
-
-Rispondi SOLO con un JSON array in questo formato:
-[
-  {"title": "Descrizione breve articolo", "searchQuery": "query ottimizzata per shopping"},
-  {"title": "Descrizione alternativa", "searchQuery": "altra query"},
-  {"title": "Terza opzione", "searchQuery": "terza query"}
-]
-
-IMPORTANTE: Rispondi SOLO con il JSON, nessun altro testo.`;
-
-    const geminiStartTime = Date.now();
-    const result = await model.generateContent(userQuery);
-    const geminiDuration = Date.now() - geminiStartTime;
-
-    const response = await result.response;
-    const text = response.text();
-
-    console.log('🤖 Shopping response:', JSON.stringify({
-      duration: geminiDuration,
-      length: text.length,
-      preview: text.substring(0, 200)
-    }));
-
-    let recommendations = [];
-    try {
-      const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleanText);
-      
-      if (Array.isArray(parsed)) {
-        // Converti le query in URL Google Shopping
-        recommendations = parsed
-          .filter(item => item && item.title && item.searchQuery)
-          .map(item => ({
-            title: item.title,
-            url: `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(item.searchQuery)}`
-          }))
-          .slice(0, 3);
-      }
-    } catch (parseError) {
-      console.warn('⚠️ Parse warning:', parseError.message);
-      console.warn('Raw text:', text);
-      recommendations = [];
-    }
-
-    const totalDuration = Date.now() - startTime;
-    
-    console.log('✅ Shopping done:', recommendations.length, 'items');
-
-    return res.status(200).json({
-      success: true,
-      recommendations,
-      metadata: {
-        processingTime: totalDuration,
-        count: recommendations.length
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Shopping error:', error.message);
-
-    return res.status(500).json({
-      success: false,
-      error: error.message,
-      recommendations: []
-    });
-  }
-});
 
 /**
  * Cloud Function HTTP endpoint per suggerimenti outfit con Gemini
@@ -557,12 +423,16 @@ functions.http('generateOutfit', async (req, res) => {
   // CORS headers
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+  // 1. 🔒 SICUREZZA
+  if (!(await enforceAuth(req, res))) return;
+  
   if (req.method === 'OPTIONS') {
     return res.status(204).send('');
   }
-
+  
+  // Rate limiting (opzionale, ma mantenuto per difesa aggiuntiva)
   const rateLimitResult = checkRateLimit(clientIp);
   if (rateLimitResult.limited) {
     res.set('Retry-After', rateLimitResult.retryAfter.toString());
@@ -573,22 +443,7 @@ functions.http('generateOutfit', async (req, res) => {
     });
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'Metodo non consentito. Usa POST.'
-    });
-  }
-
   try {
-    // Autenticazione Firebase via Bearer token
-    let authUser;
-    try {
-      authUser = await verifyFirebaseAuth(req);
-    } catch (authErr) {
-      return res.status(401).json({ success: false, error: 'Non autenticato' });
-    }
-
     const { availableItems, userRequest } = req.body || {};
 
     if (!Array.isArray(availableItems) || availableItems.length === 0) {
@@ -598,31 +453,32 @@ functions.http('generateOutfit', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Parametro userRequest mancante' });
     }
 
-    // Limita inventario per prompt safety
-    const limitedItems = availableItems.slice(0, 60);
-    const inventory = limitedItems
-      .map((it, idx) => {
-        const name = (it.name || '').toString().trim();
-        const category = (it.category || '').toString().trim();
-        const color = (it.mainColor || it.color || '').toString().trim();
-        const brand = (it.brand || '').toString().trim();
-        return `${idx + 1}. ${name || category} | Cat: ${category} | Col: ${color} | Brand: ${brand}`;
-      })
-      .join('\n');
+    // 2. 🧠 LOGICA OTTIMIZZATA PER TOKEN
+    const inventoryString = availableItems
+        .slice(0, 100) // Limite aumentato grazie al formato slim
+        .map((it, idx) => {
+            const n = it.n || it.name || 'Capo';
+            const c = it.c || it.category || '?';
+            const l = it.l || it.mainColor || it.color || '';
+            return `${idx+1}. [${c}] ${n} ${l ? `(${l})` : ''}`;
+        })
+        .join('\n');
+
+    const systemInstruction = `Sei uno stylist. Crea un outfit usando SOLO questi capi:
+${inventoryString}
+
+Regole:
+1. Scegli 3-5 capi per un look completo.
+2. Rispondi SOLO con un elenco puntato.
+3. Se mancano scarpe o pantaloni adatti, dillo.`;
+    
+    const userPrompt = `Occasione/brief: ${userRequest}`;
 
     const apiKey = await getGeminiApiKey();
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
-    const systemInstruction = `Sei un fashion stylist personale per l'app Armadio Digitale.
-Devi creare un outfit coerente usando ESCLUSIVAMENTE i capi forniti nell'inventario.
-Rispetta stagione e contesto. Se mancano elementi (es. cappotto), proponi alternative dall'inventario.
-Rispondi in italiano, tono amichevole, sintetico, con elenco puntato dei capi scelti.
-Non inventare capi non presenti. Se l'inventario è insufficiente, spiega brevemente cosa manca.`;
-
-    const userPrompt = `Occasione/brief: ${userRequest}\n\nInventario disponibile (usa solo questi capi):\n${inventory}`;
-
-    console.log('👗 Generating outfit with inventory size:', limitedItems.length);
+    console.log('👗 Generating outfit with inventory size:', availableItems.length);
 
     const geminiStartTime = Date.now();
     const result = await model.generateContent({
@@ -640,7 +496,7 @@ Non inventare capi non presenti. Se l'inventario è insufficiente, spiega brevem
     return res.status(200).json({
       success: true,
       suggestion: text,
-      metadata: { processingTime: totalDuration, inventoryCount: limitedItems.length, uid: authUser.uid }
+      metadata: { processingTime: totalDuration, inventoryCount: availableItems.length, uid: req.user.uid }
     });
   } catch (error) {
     console.error('❌ Outfit error:', error.message);

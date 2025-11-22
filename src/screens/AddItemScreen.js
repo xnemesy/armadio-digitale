@@ -3,6 +3,8 @@ import { View, Text, Image, TouchableOpacity, Alert, ScrollView, TextInput, Acti
 import { Camera, Image as ImageIcon, ChevronLeft } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import Constants from 'expo-constants';
+import * as FileSystem from 'expo-file-system';
 import { getStorage } from '@react-native-firebase/storage';
 import { collection, query, where, getDocs, doc, setDoc, serverTimestamp, getFirestore } from '@react-native-firebase/firestore';
 import { analyzeImageWithGemini, getShoppingRecommendations } from '../lib/ai';
@@ -64,27 +66,123 @@ const AddItemScreen = ({ navigation, route }) => {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState('');
     const [scanning, setScanning] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
     const [recommendations, setRecommendations] = useState([]);
     const [duplicateFound, setDuplicateFound] = useState(null);
 
+    const removeBackground = async (imageUri) => {
+        try {
+            const apiKey = Constants.expoConfig.extra.CLIPDROP_API_KEY;
+            if (!apiKey) {
+                Alert.alert('Errore di Configurazione', 'Chiave API per Clipdrop non trovata.');
+                return null;
+            }
+
+            const formData = new FormData();
+            formData.append('image_file', {
+                uri: imageUri,
+                name: 'photo.jpg',
+                type: 'image/jpeg',
+            });
+
+            const response = await fetch('https://api.clipdrop.co/remove-background/v1', {
+                method: 'POST',
+                headers: { 'x-api-key': apiKey },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('Clipdrop API Error:', errorData);
+                Alert.alert('Errore Rimozione Sfondo', `L'API ha restituito un errore: ${response.status}. Si procederà con l'immagine originale.`);
+                return null;
+            }
+
+            const imageBlob = await response.blob();
+            const processedUri = FileSystem.cacheDirectory + 'processed-image.png';
+
+            const reader = new FileReader();
+            reader.readAsDataURL(imageBlob);
+            
+            return new Promise((resolve) => {
+                reader.onloadend = async () => {
+                    const base64data = reader.result;
+                    const base64String = base64data.split(',')[1];
+                    try {
+                        await FileSystem.writeAsStringAsync(processedUri, base64String, {
+                            encoding: FileSystem.EncodingType.Base64,
+                        });
+                        resolve(processedUri);
+                    } catch (error) {
+                        console.error("Error writing processed image file:", error);
+                        Alert.alert('Errore File', 'Impossibile salvare l\'immagine processata.');
+                        resolve(null); // Resolve with null on failure
+                    }
+                };
+                reader.onerror = () => {
+                    Alert.alert('Errore File', 'Impossibile leggere l\'immagine processata.');
+                    resolve(null); // Resolve with null on failure
+                };
+            });
+
+        } catch (error) {
+            console.error('Remove background error:', error);
+            Alert.alert('Errore di Rete', 'Impossibile contattare il servizio di rimozione sfondo. Si userà l\'immagine originale.');
+            return null;
+        }
+    };
+
+    const processNewImage = async (pickerResult) => {
+        if (pickerResult.canceled) return;
+        
+        setLoading(true);
+        setIsProcessing(true);
+        setStatus('✂️ Rimozione sfondo in corso...');
+
+        const originalUri = pickerResult.assets[0].uri;
+
+        // Reset state
+        setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
+        setRecommendations([]);
+        setDuplicateFound(null);
+
+        // Preview original image immediately
+        setImagePreview(originalUri);
+
+        const processedUri = await removeBackground(originalUri);
+        const finalUri = processedUri || originalUri;
+
+        setImagePreview(finalUri);
+        setImageLocalUri(finalUri);
+
+        setIsProcessing(false);
+        // The 'loading' state remains true for the AI analysis
+
+        try {
+            const base64 = await FileSystem.readAsStringAsync(finalUri, {
+                encoding: FileSystem.EncodingType.Base64,
+            });
+            setImageBase64(base64);
+            if (base64) {
+                await analyzeAndCheck(base64, finalUri);
+            } else {
+                 throw new Error("Failed to read base64 from final URI");
+            }
+        } catch(e) {
+            console.error("Error processing image or running analysis:", e);
+            setStatus('❌ Errore. Inserisci i dati manualmente.');
+            setLoading(false); // Release lock if analysis fails
+        }
+    };
+    
     const handleImageChange = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
             Alert.alert('Permesso negato', 'Serve l\'accesso alla galleria');
             return;
         }
-        const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [3,4], quality: 0.7, base64: true });
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            const base64 = result.assets[0].base64;
-            setImagePreview(uri);
-            setImageLocalUri(uri);
-            setImageBase64(base64);
-            setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
-            setRecommendations([]);
-            setDuplicateFound(null);
-            if (base64) analyzeAndCheck(base64);
-        }
+        const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [3,4], quality: 0.7 });
+        await processNewImage(result);
     };
 
     const handleTakePhoto = async () => {
@@ -93,18 +191,8 @@ const AddItemScreen = ({ navigation, route }) => {
             Alert.alert('Permesso negato', 'Serve l\'accesso alla fotocamera');
             return;
         }
-        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [3,4], quality: 0.7, base64: true });
-        if (!result.canceled) {
-            const uri = result.assets[0].uri;
-            const base64 = result.assets[0].base64;
-            setImagePreview(uri);
-            setImageLocalUri(uri);
-            setImageBase64(base64);
-            setMetadata({ name: '', category: '', mainColor: '', brand: '', size: '' });
-            setRecommendations([]);
-            setDuplicateFound(null);
-            if (base64) analyzeAndCheck(base64);
-        }
+        const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [3,4], quality: 0.7 });
+        await processNewImage(result);
     };
 
     const checkDuplicate = async (aiMetadata) => {
@@ -115,15 +203,15 @@ const AddItemScreen = ({ navigation, route }) => {
         return null;
     };
 
-    const analyzeAndCheck = async (base64) => {
+    const analyzeAndCheck = async (base64, uri) => {
         setLoading(true);
         setScanning(true);
         setStatus('🔍 Analisi on-device in corso...');
         try {
             // 1) On-device fast classification (if available)
             let aiResult = {};
-            if (imageLocalUri) {
-                const localPred = await classifyClothingFromUri(imageLocalUri);
+            if (uri) {
+                const localPred = await classifyClothingFromUri(uri);
                 if (localPred && localPred.confidence >= ML_CONFIG.confidenceThreshold) {
                     aiResult.category = localPred.label;
                     setStatus(`✅ Categoria: ${localPred.label} (${(localPred.confidence*100).toFixed(0)}%)`);
@@ -243,10 +331,12 @@ const AddItemScreen = ({ navigation, route }) => {
                         {imagePreview ? (
                             <View style={{ position: 'relative' }}>
                                 <Image source={{ uri: imagePreview }} style={styles.imagePreview} />
-                                {scanning && (
+                                {(isProcessing || scanning) && (
                                     <View style={[styles.scanningOverlay, { backgroundColor: 'rgba(99, 102, 241, 0.2)' }]}>
                                         <ActivityIndicator size="large" color={tokens.colors.accent} />
-                                        <Text style={[styles.scanningText, { color: tokens.colors.accent }]}>Scansione AI...</Text>
+                                        <Text style={[styles.scanningText, { color: tokens.colors.accent }]}>
+                                            {isProcessing ? 'Rimozione sfondo...' : 'Scansione AI...'}
+                                        </Text>
                                     </View>
                                 )}
                             </View>

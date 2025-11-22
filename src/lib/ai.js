@@ -1,104 +1,60 @@
-import Constants from 'expo-constants';
+// src/lib/ai.js
+
 import { getAuth } from '@react-native-firebase/auth';
 
-export const analyzeImageWithGemini = async (base64Image) => {
-  const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage';
-  const payload = { imageBase64: base64Image, mimeType: 'image/jpeg' };
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const response = await fetch(cloudFunctionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.data) {
-          return {
-            name: result.data.name || result.data.category || '',
-            category: result.data.category || '',
-            mainColor: result.data.color || '',
-            brand: result.data.brand || 'Generic',
-            size: result.data.size || '',
-          };
-        }
-        // Application-level error: do not retry
-        const err = new Error(result.error || 'Errore analisi immagine');
-        // mark to skip retry loop
-        err.noRetry = true;
-        throw err;
-      } else if (response.status === 429 && attempt < 4) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      const text = await response.text();
-      throw new Error(`Cloud Function error: ${response.status} ${text}`);
-    } catch (e) {
-      if (e && e.noRetry) throw e; // do not retry on application-level errors
-      if (attempt === 4) throw e;
-      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-      await new Promise(r => setTimeout(r, delay));
-    }
+// Helper per le chiamate fetch sicure
+const secureFetch = async (url, body) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+  if (!user) throw new Error("Utente non autenticato");
+  
+  const token = await user.getIdToken();
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` // 🔒 FONDAMENTALE
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Server error: ${response.status} ${text}`);
   }
+  return response.json();
 };
 
-export const getShoppingRecommendations = async (itemDescription) => {
-  const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/getShoppingRecommendations';
+export const getOutfitSuggestion = async (allItems, userRequest) => {
+  // 1. Pre-processing Client Side: Manda solo ciò che serve
+  // Riduciamo il payload JSON del 80% qui
+  const slimItems = allItems.map(item => ({
+    n: item.name,       // name
+    c: item.category,   // category
+    l: item.mainColor,  // color (l = look/colore)
+    b: item.brand,      // brand
+    s: item.season      // season
+    // ID, date, url immagine rimossi
+  }));
+
   try {
-    const response = await fetch(cloudFunctionUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemDescription }),
-    });
-    if (!response.ok) return [];
-    const result = await response.json();
-    return result?.recommendations || [];
-  } catch {
-    return [];
+    const result = await secureFetch(
+      'https://europe-west1-armadiodigitale.cloudfunctions.net/generateOutfit',
+      { availableItems: slimItems, userRequest }
+    );
+    return result.suggestion;
+  } catch (e) {
+    console.error("AI Error", e);
+    return "Impossibile generare l'outfit al momento.";
   }
 };
 
-export const getOutfitSuggestion = async (availableItems, userRequest) => {
-  const cloudFunctionUrl = 'https://europe-west1-armadiodigitale.cloudfunctions.net/generateOutfit';
-  const payload = { availableItems, userRequest };
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      // Recupera ID token Firebase se utente autenticato
-      let idToken = null;
-      try {
-        const currentUser = getAuth().currentUser;
-        if (currentUser) idToken = await currentUser.getIdToken();
-      } catch {}
-
-      const response = await fetch(cloudFunctionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && typeof result.suggestion === 'string') {
-          return result.suggestion || 'Nessun suggerimento generato.';
-        }
-        const err = new Error(result.error || 'Errore generazione outfit');
-        err.noRetry = true;
-        throw err;
-      } else if (response.status === 429 && attempt < 4) {
-        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      const text = await response.text();
-      throw new Error(`Cloud Function error: ${response.status} ${text}`);
-    } catch (e) {
-      if (e && e.noRetry) return e.message || 'Errore generazione outfit';
-      if (attempt === 4) return 'Errore nella comunicazione con l\'AI. Riprova più tardi.';
-      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
+export const analyzeImageWithGemini = async (base64Image) => {
+  // Ora usa secureFetch con auth!
+  const result = await secureFetch(
+    'https://europe-west1-armadiodigitale.cloudfunctions.net/analyzeImage',
+    { imageBase64: base64Image }
+  );
+  return result.data;
 };

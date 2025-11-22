@@ -59,6 +59,7 @@ export default {
       SENTRY_DSN: process.env.SENTRY_DSN,
       // Google Sign-In Web Client ID (from Firebase Console)
       googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
+      CLIPDROP_API_KEY: process.env.CLIPDROP_API_KEY,
     }
   }
 };
